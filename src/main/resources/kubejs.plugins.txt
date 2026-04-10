@@ -1,0 +1,1 @@
+com.hp.gatewaysjs.kubejs.GatewaysJSPlugin gateways
