@@ -196,6 +196,264 @@ public class GatewayBuilder {
         return this;
     }
 
+    /**
+     * 设置传送门规则
+     */
+    public GatewayBuilder rules(GateRules rules) {
+        if (rules == null) {
+            throw new IllegalArgumentException("Rules cannot be null");
+        }
+        this.rules = rules;
+        return this;
+    }
+
+    /**
+     * 设置完整传送门规则
+     */
+    public GatewayBuilder rules(double spawnRange, double leashRange, boolean allowDiscarding,
+                                boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
+                                boolean failOnOutOfBounds, double spacing, double followRangeBoost,
+                                float defaultDropChance) {
+        this.rules = new GateRules(
+            spawnRange,
+            leashRange,
+            allowDiscarding,
+            allowDimChange,
+            playerDamageOnly,
+            removeMobsOnFailure,
+            failOnOutOfBounds,
+            spacing,
+            followRangeBoost,
+            defaultDropChance
+        );
+        return this;
+    }
+
+    /**
+     * 设置完整传送门规则
+     */
+    public GatewayBuilder rules(double spawnRange, double leashRange, boolean allowDiscarding,
+                                boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
+                                boolean failOnOutOfBounds, double spacing, double followRangeBoost,
+                                double defaultDropChance) {
+        return rules(
+            spawnRange,
+            leashRange,
+            allowDiscarding,
+            allowDimChange,
+            playerDamageOnly,
+            removeMobsOnFailure,
+            failOnOutOfBounds,
+            spacing,
+            followRangeBoost,
+            (float) defaultDropChance
+        );
+    }
+
+    /**
+     * 设置怪物生成范围
+     */
+    public GatewayBuilder spawnRange(double spawnRange) {
+        this.rules = new GateRules(
+            spawnRange,
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置怪物牵引范围
+     */
+    public GatewayBuilder leashRange(double leashRange) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            leashRange,
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置是否允许丢弃的实体计入击杀
+     */
+    public GatewayBuilder allowDiscarding(boolean allowDiscarding) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            allowDiscarding,
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置是否允许跨维度实体计入击杀
+     */
+    public GatewayBuilder allowDimChange(boolean allowDimChange) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            allowDimChange,
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置波次实体是否只能被玩家伤害
+     */
+    public GatewayBuilder playerDamageOnly(boolean playerDamageOnly) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            playerDamageOnly,
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置传送门失败时是否移除怪物
+     */
+    public GatewayBuilder removeMobsOnFailure(boolean removeMobsOnFailure) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            removeMobsOnFailure,
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * removeMobsOnFailure 的别名
+     */
+    public GatewayBuilder removeOnFailure(boolean removeOnFailure) {
+        return removeMobsOnFailure(removeOnFailure);
+    }
+
+    /**
+     * 设置怪物超出牵引范围时是否让传送门失败
+     */
+    public GatewayBuilder failOnOutOfBounds(boolean failOnOutOfBounds) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            failOnOutOfBounds,
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置传送门之间的最小间距
+     */
+    public GatewayBuilder spacing(double spacing) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            spacing,
+            rules.followRangeBoost(),
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置怪物跟随范围加成
+     */
+    public GatewayBuilder followRangeBoost(double followRangeBoost) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            followRangeBoost,
+            rules.defaultDropChance()
+        );
+        return this;
+    }
+
+    /**
+     * 设置默认装备掉落概率
+     */
+    public GatewayBuilder defaultDropChance(float defaultDropChance) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            defaultDropChance
+        );
+        return this;
+    }
+
+    /**
+     * 设置默认装备掉落概率
+     */
+    public GatewayBuilder defaultDropChance(double defaultDropChance) {
+        return defaultDropChance((float) defaultDropChance);
+    }
+
     // ==================== 注册与生成 ====================
 
     /**
@@ -208,17 +466,12 @@ public class GatewayBuilder {
 
     /**
      * 注册自定义传送门（仅对 custom() 创建的 Builder 有效）
-     * 如果传送门已注册，则跳过注册
+     * 如果传送门已注册，则替换旧注册，刷新状态
      * @return this，便于链式调用
      */
     public GatewayBuilder register() {
         if (!isCustom) {
             throw new IllegalStateException("Cannot register a non-custom gateway. Use GatewayBuilder.custom() instead.");
-        }
-
-        // 如果已注册则跳过
-        if (exists()) {
-            return this;
         }
 
         // 构建波次列表
@@ -243,7 +496,7 @@ public class GatewayBuilder {
             bossSettings
         );
 
-        // 使用反射工具类注册（如果已存在会返回 false）
+        // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
         RegistryHelper.register(GatewayRegistry.INSTANCE, gatewayId, gateway);
 
         return this;

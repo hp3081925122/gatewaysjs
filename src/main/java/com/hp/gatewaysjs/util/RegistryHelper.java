@@ -22,21 +22,22 @@ public class RegistryHelper {
     // 反射缓存
     private static Field registryField;
     private static Method bindMethod;
+    private static Method unbindMethod;
 
     /**
      * 在服务器运行时动态注册到 DynamicRegistry
      *
      * 此方法会：
-     * 1. 检查是否已存在，如已存在则跳过注册
-     * 2. 将 ImmutableBiMap 转换为可变的 HashBiMap
+     * 1. 将 ImmutableBiMap 转换为可变的 HashBiMap
+     * 2. 如已存在同 ID 条目，先移除旧条目
      * 3. 添加新条目
-     * 4. 获取或创建 DynamicHolder 并绑定
+     * 4. 获取或创建 DynamicHolder 并重新绑定
      * 5. 将 registry 转换回 ImmutableBiMap
      *
      * @param registry 目标注册表
      * @param key 注册ID
      * @param value 要注册的值
-     * @return true 如果新注册成功，false 如果已存在（跳过注册）
+     * @return true 如果注册或替换成功
      */
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> boolean register(
@@ -50,13 +51,11 @@ public class RegistryHelper {
             // 获取当前 registry map
             BiMap<ResourceLocation, T> currentRegistry = (BiMap<ResourceLocation, T>) registryField.get(registry);
 
-            // 检查是否已存在 - 如果存在则跳过注册
-            if (currentRegistry.containsKey(key)) {
-                return false; // 已存在，跳过注册
-            }
-
             // 转换为可变 Map
             BiMap<ResourceLocation, T> mutableRegistry = HashBiMap.create(currentRegistry);
+
+            // Remove the old entry first so the same gateway id can be refreshed.
+            mutableRegistry.remove(key);
 
             // 添加新条目
             mutableRegistry.put(key, value);
@@ -67,8 +66,8 @@ public class RegistryHelper {
             // 使用 holder() 方法获取或创建 holder
             DynamicHolder<T> holder = registry.holder(key);
 
-            // 调用 bind() 方法 - 这会从 registry.getValue(id) 获取值
-            // 由于我们已经把值放入 registry，bind 会正确设置 value
+            // Refresh an existing holder that may still point at the old gateway.
+            unbindMethod.invoke(holder);
             bindMethod.invoke(holder);
 
             return true; // 注册成功
@@ -99,6 +98,10 @@ public class RegistryHelper {
         if (bindMethod == null) {
             bindMethod = DynamicHolder.class.getDeclaredMethod("bind");
             bindMethod.setAccessible(true);
+        }
+        if (unbindMethod == null) {
+            unbindMethod = DynamicHolder.class.getDeclaredMethod("unbind");
+            unbindMethod.setAccessible(true);
         }
     }
 }

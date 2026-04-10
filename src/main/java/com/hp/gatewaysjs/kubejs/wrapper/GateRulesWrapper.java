@@ -35,6 +35,13 @@ public class GateRulesWrapper {
     }
 
     /**
+     * 是否允许跨维度
+     */
+    public boolean isAllowDimChange() {
+        return rules.allowDimChange();
+    }
+
+    /**
      * 是否只允许玩家伤害
      */
     public boolean isPlayerDamageOnly() {

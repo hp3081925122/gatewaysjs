@@ -10,9 +10,6 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 /**
- * 后续修改如果已经注册了传送门珍珠，则删除已注册传送门珍珠，然后再注册新的
- * rules部分还没塞
- * 动态构建传送门珍珠返回传送门珍珠实体实例
  */
 /**
  * GatewaysJS - Gateway与KubeJS的联动附属模组
