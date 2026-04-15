@@ -147,14 +147,6 @@ public class GatewayBuilder {
     }
 
     /**
-     * 设置传送门大小
-     */
-    public GatewayBuilder size(Gateway.Size size) {
-        this.size = size;
-        return this;
-    }
-
-    /**
      * 设置传送门颜色（十六进制）
      * @param hexColor 十六进制颜色值（如 0xFF0000 为红色）
      */
@@ -213,30 +205,8 @@ public class GatewayBuilder {
     public GatewayBuilder rules(double spawnRange, double leashRange, boolean allowDiscarding,
                                 boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
                                 boolean failOnOutOfBounds, double spacing, double followRangeBoost,
-                                float defaultDropChance) {
-        this.rules = new GateRules(
-            spawnRange,
-            leashRange,
-            allowDiscarding,
-            allowDimChange,
-            playerDamageOnly,
-            removeMobsOnFailure,
-            failOnOutOfBounds,
-            spacing,
-            followRangeBoost,
-            defaultDropChance
-        );
-        return this;
-    }
-
-    /**
-     * 设置完整传送门规则
-     */
-    public GatewayBuilder rules(double spawnRange, double leashRange, boolean allowDiscarding,
-                                boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
-                                boolean failOnOutOfBounds, double spacing, double followRangeBoost,
                                 double defaultDropChance) {
-        return rules(
+        this.rules = new GateRules(
             spawnRange,
             leashRange,
             allowDiscarding,
@@ -248,6 +218,7 @@ public class GatewayBuilder {
             followRangeBoost,
             (float) defaultDropChance
         );
+        return this;
     }
 
     /**
@@ -431,7 +402,7 @@ public class GatewayBuilder {
     /**
      * 设置默认装备掉落概率
      */
-    public GatewayBuilder defaultDropChance(float defaultDropChance) {
+    public GatewayBuilder defaultDropChance(double defaultDropChance) {
         this.rules = new GateRules(
             rules.spawnRange(),
             rules.leashRange(),
@@ -442,16 +413,9 @@ public class GatewayBuilder {
             rules.failOnOutOfBounds(),
             rules.spacing(),
             rules.followRangeBoost(),
-            defaultDropChance
+            (float) defaultDropChance
         );
         return this;
-    }
-
-    /**
-     * 设置默认装备掉落概率
-     */
-    public GatewayBuilder defaultDropChance(double defaultDropChance) {
-        return defaultDropChance((float) defaultDropChance);
     }
 
     // ==================== 注册与生成 ====================
