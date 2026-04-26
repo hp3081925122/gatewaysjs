@@ -3,6 +3,11 @@ package com.hp.gatewaysjs.util;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableBiMap;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.JsonOps;
+import dev.shadowsoffire.placebo.codec.CodecMap;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import dev.shadowsoffire.placebo.reload.DynamicRegistry;
@@ -21,6 +26,7 @@ public class RegistryHelper {
 
     // 反射缓存
     private static Field registryField;
+    private static Field codecsField;
     private static Method bindMethod;
     private static Method unbindMethod;
 
@@ -90,10 +96,48 @@ public class RegistryHelper {
         }
     }
 
+    /**
+     * Serializes a dynamic registry entry into JSON using the registry codec map.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends CodecProvider<? super T>> String encodeToJson(DynamicRegistry<T> registry, T value) {
+        try {
+            initReflection();
+            CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
+            JsonElement element = codecMap.encodeStart(JsonOps.INSTANCE, value).getOrThrow(false, message -> {
+                throw new IllegalStateException(message);
+            });
+            return element.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to encode registry value " + value, e);
+        }
+    }
+
+    /**
+     * Restores a dynamic registry entry from JSON using the registry codec map.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends CodecProvider<? super T>> T decodeFromJson(DynamicRegistry<T> registry, String json) {
+        try {
+            initReflection();
+            CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
+            Pair<T, JsonElement> decoded = codecMap.decode(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow(false, message -> {
+                throw new IllegalStateException(message);
+            });
+            return decoded.getFirst();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to decode registry value from json", e);
+        }
+    }
+
     private static void initReflection() throws NoSuchFieldException, NoSuchMethodException {
         if (registryField == null) {
             registryField = DynamicRegistry.class.getDeclaredField("registry");
             registryField.setAccessible(true);
+        }
+        if (codecsField == null) {
+            codecsField = DynamicRegistry.class.getDeclaredField("codecs");
+            codecsField.setAccessible(true);
         }
         if (bindMethod == null) {
             bindMethod = DynamicHolder.class.getDeclaredMethod("bind");

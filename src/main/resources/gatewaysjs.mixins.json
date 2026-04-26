@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "gatewaysjs.refmap.json",
   "mixins": [
+    "GatewayEntityPersistenceMixin"
   ],
   "client": [
   ],

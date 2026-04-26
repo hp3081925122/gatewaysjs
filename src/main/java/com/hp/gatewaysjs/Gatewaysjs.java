@@ -1,9 +1,11 @@
 package com.hp.gatewaysjs;
 
+import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.mojang.logging.LogUtils;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
-import dev.shadowsoffire.placebo.reload.DynamicRegistry;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -34,6 +36,11 @@ public class Gatewaysjs {
 
         // 注册到Forge事件总线
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
+        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
+        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);
+        DynamicGatewayManager.bootstrap();
 
         LOGGER.info("GatewaysJS 加载完成 - Gateway与KubeJS联动附属");
     }

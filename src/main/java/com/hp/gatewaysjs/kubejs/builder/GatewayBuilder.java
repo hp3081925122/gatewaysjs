@@ -1,6 +1,6 @@
 package com.hp.gatewaysjs.kubejs.builder;
 
-import com.hp.gatewaysjs.util.RegistryHelper;
+import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
@@ -153,6 +153,26 @@ public class GatewayBuilder {
     public GatewayBuilder color(int hexColor) {
         this.color = TextColor.fromRgb(hexColor & 0xFFFFFF);
         return this;
+    }
+
+    public GatewayBuilder color(double hexColor) {
+        return color((int) hexColor);
+    }
+
+    public GatewayBuilder color(Number hexColor) {
+        return color(hexColor.intValue());
+    }
+
+    public GatewayBuilder setColor(int hexColor) {
+        return color(hexColor);
+    }
+
+    public GatewayBuilder setColor(double hexColor) {
+        return color(hexColor);
+    }
+
+    public GatewayBuilder setColor(Number hexColor) {
+        return color(hexColor);
     }
 
     /**
@@ -461,7 +481,7 @@ public class GatewayBuilder {
         );
 
         // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
-        RegistryHelper.register(GatewayRegistry.INSTANCE, gatewayId, gateway);
+        DynamicGatewayManager.register(gatewayId, gateway);
 
         return this;
     }
