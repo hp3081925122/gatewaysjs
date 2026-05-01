@@ -2,12 +2,14 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.hp.gatewaysjs.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_17",
   "refmap": "gatewaysjs.refmap.json",
   "mixins": [
     "GatewayEntityPersistenceMixin"
   ],
   "client": [
+    "GatewayRendererMixin",
+    "NormalGateClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1

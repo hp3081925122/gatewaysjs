@@ -2,6 +2,8 @@ package com.hp.gatewaysjs.kubejs.binding;
 
 import com.hp.gatewaysjs.kubejs.builder.GatewayBuilder;
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayWrapper;
+import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
+import com.hp.gatewaysjs.util.GatewayRenderData;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
@@ -374,5 +376,58 @@ public interface GatewayAPI {
      */
     static GatewayBuilder customBuilder(String id) {
         return GatewayBuilder.custom(id);
+    }
+
+    // ==================== 自定义纹理设置 ====================
+
+    /**
+     * 为指定ID的网关设置自定义实体纹理。
+     * <p>
+     * JavaScript示例:
+     * <pre>
+     * Gateway.setEntityTexture("mymod:my_gate", "mymod:textures/entity/my_gate.png");
+     * </pre>
+     * </p>
+     * @param gatewayId  网关ID
+     * @param texturePath 纹理资源路径（如 "mymod:textures/entity/my_gate.png"）
+     */
+    static void setEntityTexture(String gatewayId, String texturePath) {
+        ResourceLocation id = new ResourceLocation(gatewayId);
+        ResourceLocation tex = new ResourceLocation(texturePath);
+        GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
+        if (existing != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(tex, existing.getBossBarTexture()));
+        } else {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(tex, null));
+        }
+    }
+
+    /**
+     * 为指定ID的网关设置自定义Boss条纹理。
+     * <p>
+     * 纹理布局必须与原版 {@code textures/gui/bars.png} 一致。
+     * </p>
+     * <p>
+     * JavaScript示例:
+     * <pre>
+     * Gateway.setBossBarTexture("mymod:my_gate", "mymod:textures/gui/my_boss_bar.png");
+     * </pre>
+     * </p>
+     * @param gatewayId  网关ID
+     * @param texturePath Boss条纹理资源路径
+     */
+    static void setBossBarTexture(String gatewayId, String texturePath) {
+        ResourceLocation id = new ResourceLocation(gatewayId);
+        ResourceLocation tex = new ResourceLocation(texturePath);
+        GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
+        if (existing != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(existing.getEntityTexture(), tex));
+        } else {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(null, tex));
+        }
     }
 }

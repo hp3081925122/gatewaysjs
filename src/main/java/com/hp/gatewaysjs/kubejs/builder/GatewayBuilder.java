@@ -1,6 +1,8 @@
 package com.hp.gatewaysjs.kubejs.builder;
 
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
+import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
+import com.hp.gatewaysjs.util.GatewayRenderData;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
@@ -15,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -70,6 +73,12 @@ public class GatewayBuilder {
     private SpawnAlgorithm spawnAlgo = SpawnAlgorithms.OPEN_FIELD;
     private GateRules rules = GateRules.DEFAULT;
     private BossEventSettings bossSettings = BossEventSettings.DEFAULT;
+
+    // 自定义纹理（仅客户端渲染用）
+    @Nullable
+    private ResourceLocation entityTexture;
+    @Nullable
+    private ResourceLocation bossBarTexture;
 
     private GatewayBuilder(ResourceLocation id, boolean isCustom) {
         this.gatewayId = id;
@@ -173,6 +182,34 @@ public class GatewayBuilder {
 
     public GatewayBuilder setColor(Number hexColor) {
         return color(hexColor);
+    }
+
+    // ==================== 自定义纹理 ====================
+
+    /**
+     * 设置网关实体的自定义纹理路径。
+     * <p>
+     * 纹理应放置在资源包中，路径格式如 {@code "mymod:textures/entity/my_gate.png"}。
+     * 纹理高度应为宽度的9倍（因为渲染器会按9帧动画切分）。
+     * </p>
+     * @param texturePath 纹理的资源路径
+     */
+    public GatewayBuilder entityTexture(String texturePath) {
+        this.entityTexture = new ResourceLocation(texturePath);
+        return this;
+    }
+
+    /**
+     * 设置网关Boss条的自定义纹理路径。
+     * <p>
+     * 纹理布局必须与原版 {@code textures/gui/bars.png} 一致（256x256，
+     * Boss条背景在v=60处，填充在v=65处）。
+     * </p>
+     * @param texturePath Boss条纹理的资源路径
+     */
+    public GatewayBuilder bossBarTexture(String texturePath) {
+        this.bossBarTexture = new ResourceLocation(texturePath);
+        return this;
     }
 
     /**
@@ -482,6 +519,12 @@ public class GatewayBuilder {
 
         // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
         DynamicGatewayManager.register(gatewayId, gateway);
+
+        // 如果有自定义纹理，存入纹理管理器
+        if (entityTexture != null || bossBarTexture != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(gatewayId,
+                new GatewayRenderData(entityTexture, bossBarTexture));
+        }
 
         return this;
     }
