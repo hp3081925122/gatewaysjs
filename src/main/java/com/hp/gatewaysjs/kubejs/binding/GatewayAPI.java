@@ -2,6 +2,7 @@ package com.hp.gatewaysjs.kubejs.binding;
 
 import com.hp.gatewaysjs.kubejs.builder.GatewayBuilder;
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayWrapper;
+import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import com.hp.gatewaysjs.util.GatewayRenderData;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
@@ -397,7 +398,7 @@ public interface GatewayAPI {
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
-                new GatewayRenderData(tex, existing.getBossBarTexture()));
+                new GatewayRenderData(tex, existing.getBossBarConfig()));
         } else {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
                 new GatewayRenderData(tex, null));
@@ -405,9 +406,10 @@ public interface GatewayAPI {
     }
 
     /**
-     * 为指定ID的网关设置自定义Boss条纹理。
+     * 为指定ID的网关设置自定义Boss条纹理（使用默认UV布局）。
      * <p>
-     * 纹理布局必须与原版 {@code textures/gui/bars.png} 一致。
+     * 默认UV布局和原版 {@code textures/gui/bars.png} 一致：
+     * 背景在(u=0, v=60)，填充在(u=0, v=65)，Boss条宽182高5，纹理尺寸256x256。
      * </p>
      * <p>
      * JavaScript示例:
@@ -420,14 +422,125 @@ public interface GatewayAPI {
      */
     static void setBossBarTexture(String gatewayId, String texturePath) {
         ResourceLocation id = new ResourceLocation(gatewayId);
-        ResourceLocation tex = new ResourceLocation(texturePath);
+        BossBarRenderConfig config = new BossBarRenderConfig(new ResourceLocation(texturePath));
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
-                new GatewayRenderData(existing.getEntityTexture(), tex));
+                new GatewayRenderData(existing.getEntityTexture(), config));
         } else {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
-                new GatewayRenderData(null, tex));
+                new GatewayRenderData(null, config));
+        }
+    }
+
+    /**
+     * 为指定ID的网关设置自定义Boss条纹理和完整渲染参数。
+     * <p>
+     * 适用于纹理布局不同于原版 {@code textures/gui/bars.png} 的情况。
+     * 例如，如果模组A的Boss条纹理在(u=0, v=0)处为背景、(u=0, v=20)处为填充：
+     * <pre>
+     * Gateway.setBossBarTexture("mymod:my_gate", "othermod:textures/gui/boss_bar.png", 0, 0, 0, 20, 200, 20, 512, 512);
+     * </pre>
+     * </p>
+     * @param gatewayId   网关ID
+     * @param texturePath Boss条纹理资源路径
+     * @param bgU         背景部分在纹理中的u坐标
+     * @param bgV         背景部分在纹理中的v坐标
+     * @param fillU       进度填充部分在纹理中的u坐标
+     * @param fillV       进度填充部分在纹理中的v坐标
+     * @param barWidth    Boss条的绘制宽度（像素）
+     * @param barHeight   Boss条的绘制高度（像素）
+     * @param texWidth    纹理的总宽度（像素）
+     * @param texHeight   纹理的总高度（像素）
+     */
+    static void setBossBarTexture(String gatewayId, String texturePath,
+                                  double bgU, double bgV, double fillU, double fillV,
+                                  double barWidth, double barHeight, double texWidth, double texHeight) {
+        ResourceLocation id = new ResourceLocation(gatewayId);
+        BossBarRenderConfig config = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            (float) bgU, (float) bgV, (float) fillU, (float) fillV,
+            (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
+        GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
+        if (existing != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(existing.getEntityTexture(), config));
+        } else {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(null, config));
+        }
+    }
+
+    /**
+     * 双纹理模式——为指定ID的网关分别设置外表和进度纹理（使用默认UV布局）。
+     * <p>
+     * 外表纹理是空血条背景，进度纹理是血条填充。
+     * 默认UV布局和原版 {@code textures/gui/bars.png} 一致。
+     * </p>
+     * <p>
+     * JavaScript示例:
+     * <pre>
+     * Gateway.setBossBarTexture("mymod:my_gate", "cataclysm:textures/gui/boss_bar/leviathan_bar_base.png", "cataclysm:textures/gui/boss_bar/leviathan_bar_overlay.png");
+     * </pre>
+     * </p>
+     * @param gatewayId         网关ID
+     * @param texturePath       外表纹理（空血条背景）
+     * @param progressTexturePath 进度纹理（血条填充）
+     */
+    static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath) {
+        ResourceLocation id = new ResourceLocation(gatewayId);
+        BossBarRenderConfig config = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            new ResourceLocation(progressTexturePath));
+        GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
+        if (existing != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(existing.getEntityTexture(), config));
+        } else {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(null, config));
+        }
+    }
+
+    /**
+     * 双纹理模式——为指定ID的网关分别设置外表和进度纹理，并自定义完整UV参数。
+     * <p>
+     * JavaScript示例:
+     * <pre>
+     * Gateway.setBossBarTexture("mymod:my_gate",
+     *     "cataclysm:textures/gui/boss_bar/leviathan_bar_base.png",
+     *     "cataclysm:textures/gui/boss_bar/leviathan_bar_overlay.png",
+     *     0, 0, 0, 16, 182, 16, 256, 16);
+     * </pre>
+     * </p>
+     * @param gatewayId          网关ID
+     * @param texturePath        外表纹理（空血条背景）
+     * @param progressTexturePath 进度纹理（血条填充）
+     * @param bgU         背景部分在纹理中的u坐标
+     * @param bgV         背景部分在纹理中的v坐标
+     * @param fillU       进度填充部分在纹理中的u坐标
+     * @param fillV       进度填充部分在纹理中的v坐标
+     * @param barWidth    Boss条的绘制宽度（像素）
+     * @param barHeight   Boss条的绘制高度（像素）
+     * @param texWidth    纹理的总宽度（像素）
+     * @param texHeight   纹理的总高度（像素）
+     */
+    static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath,
+                                  double bgU, double bgV, double fillU, double fillV,
+                                  double barWidth, double barHeight, double texWidth, double texHeight) {
+        ResourceLocation id = new ResourceLocation(gatewayId);
+        BossBarRenderConfig config = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            new ResourceLocation(progressTexturePath),
+            (float) bgU, (float) bgV, (float) fillU, (float) fillV,
+            (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
+        GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
+        if (existing != null) {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(existing.getEntityTexture(), config));
+        } else {
+            GatewayCustomTextureManager.INSTANCE.setTextureData(id,
+                new GatewayRenderData(null, config));
         }
     }
 }

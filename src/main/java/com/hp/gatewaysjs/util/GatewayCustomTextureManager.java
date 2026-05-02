@@ -4,14 +4,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 
+import com.hp.gatewaysjs.mixin.GatewayEntityAccessor;
+
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
+import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
+import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.resources.ResourceLocation;
 
 /**
  * 自定义网关纹理管理器。
  * <p>
- * 负责存储和查询每个网关的自定义纹理路径。
+ * 负责存储和查询每个网关的自定义纹理路径和Boss条渲染配置。
  * 由于 KubeJS 脚本在服务端和客户端都会执行，
  * 因此可以在双方注册，客户端渲染时自动使用自定义纹理。
  * </p>
@@ -28,7 +32,7 @@ public class GatewayCustomTextureManager {
      * 设置指定网关的自定义纹理数据
      */
     public void setTextureData(ResourceLocation gateId, GatewayRenderData data) {
-        if (data != null && (data.getEntityTexture() != null || data.getBossBarTexture() != null)) {
+        if (data != null && (data.getEntityTexture() != null || data.getBossBarConfig() != null)) {
             textureMap.put(gateId, data);
         }
     }
@@ -63,27 +67,46 @@ public class GatewayCustomTextureManager {
     @Nullable
     public ResourceLocation getEntityTexture(GatewayEntity entity) {
         if (!entity.isValid()) return null;
-        ResourceLocation gateId = GatewayRegistry.INSTANCE.getKey(entity.getGateway());
+        ResourceLocation gateId = getGatewayId(entity);
         return gateId != null ? getEntityTexture(gateId) : null;
     }
 
     /**
-     * 获取指定网关的自定义Boss条纹理
+     * 获取指定网关的自定义Boss条渲染配置
      */
     @Nullable
-    public ResourceLocation getBossBarTexture(ResourceLocation gateId) {
+    public BossBarRenderConfig getBossBarConfig(ResourceLocation gateId) {
         GatewayRenderData data = textureMap.get(gateId);
-        return data != null ? data.getBossBarTexture() : null;
+        return data != null ? data.getBossBarConfig() : null;
     }
 
     /**
-     * 从网关实体获取自定义Boss条纹理
+     * 从网关实体获取自定义Boss条渲染配置
      */
     @Nullable
-    public ResourceLocation getBossBarTexture(GatewayEntity entity) {
+    public BossBarRenderConfig getBossBarConfig(GatewayEntity entity) {
         if (!entity.isValid()) return null;
-        ResourceLocation gateId = GatewayRegistry.INSTANCE.getKey(entity.getGateway());
-        return gateId != null ? getBossBarTexture(gateId) : null;
+        ResourceLocation gateId = getGatewayId(entity);
+        return gateId != null ? getBossBarConfig(gateId) : null;
+    }
+
+    /**
+     * 从网关实体中提取网关的 {@link ResourceLocation} ID。
+     * <p>
+     * 优先通过注册表值反向查找；若查找失败（注册表重建后缓存引用失效），
+     * 则通过 {@link GatewayEntityAccessor} 直接获取实体 {@link DynamicHolder} 中保存的ID。
+     * </p>
+     */
+    @Nullable
+    private static ResourceLocation getGatewayId(GatewayEntity entity) {
+        // 主方案：注册表值反向查找（适用于大多数情况）
+        ResourceLocation id = GatewayRegistry.INSTANCE.getKey(entity.getGateway());
+        if (id != null) return id;
+
+        // 后备方案：直接获取实体 DynamicHolder 中的 ID
+        // 解决 RegistryHelper 替换 registry BiMap 后，旧缓存值引用失效的问题
+        DynamicHolder<? extends Gateway> holder = ((GatewayEntityAccessor) entity).getGate();
+        return holder.getId();
     }
 
     /**

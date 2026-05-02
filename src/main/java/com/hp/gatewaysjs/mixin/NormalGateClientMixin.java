@@ -6,7 +6,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 
 import dev.shadowsoffire.gateways.client.NormalGateClient;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
@@ -16,46 +18,33 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
- * 混入 {@link NormalGateClient}，为Boss条渲染提供自定义纹理支持。
- * <p>
- * 原版Boss条使用写死的 {@code textures/gui/bars.png}，
- * 此混入允许每个网关使用不同的Boss条纹理。
- * </p>
- * <p>
- * 实现方式：在 {@link NormalGateClient#renderBossBar} 的 HEAD 处捕获自定义纹理
- * 到 {@link ThreadLocal}，然后通过 {@link Redirect} 将所有 {@code blit} 调用
- * 重定向到使用自定义纹理的版本。
- * </p>
+ * 混入 {@link NormalGateClient}，为Boss条渲染提供完全自定义的纹理支持。
  */
 @OnlyIn(Dist.CLIENT)
 @Mixin(NormalGateClient.class)
 public class NormalGateClientMixin {
 
-    private static final ThreadLocal<ResourceLocation> CUSTOM_BOSS_BAR_TEXTURE = new ThreadLocal<>();
+    private static final ThreadLocal<BossBarRenderConfig> CUSTOM_BOSS_BAR_CONFIG = new ThreadLocal<>();
 
-    /**
-     * 在 renderBossBar 执行前，将当前实体对应的自定义Boss条纹理存入ThreadLocal。
-     */
+    // NormalGateClient.renderBossBar 中硬编码的原始 v 坐标：
+    // 背景使用 v=6*5*2=60，填充使用 v=6*5*2+5=65
+    private static final float BG_V_ORIGINAL = 60.0F;
+    private static final float FILL_V_ORIGINAL = 65.0F;
+
     @Inject(method = "renderBossBar", at = @At("HEAD"), remap = false)
-    private static void gatewaysjs$captureBossBarTexture(GatewayEntity gateEntity, Object guiGfx,
+    private static void gatewaysjs$captureBossBarConfig(GatewayEntity gateEntity, Object guiGfx,
             int x, int y, boolean isInWorld, CallbackInfo ci) {
-        ResourceLocation custom = GatewayCustomTextureManager.INSTANCE.getBossBarTexture(gateEntity);
-        CUSTOM_BOSS_BAR_TEXTURE.set(custom);
+        BossBarRenderConfig config = GatewayCustomTextureManager.INSTANCE.getBossBarConfig(gateEntity);
+        CUSTOM_BOSS_BAR_CONFIG.set(config);
     }
 
-    /**
-     * 在 renderBossBar 执行完毕后清理ThreadLocal。
-     */
     @Inject(method = "renderBossBar", at = @At("RETURN"), remap = false)
-    private static void gatewaysjs$cleanupBossBarTexture(CallbackInfo ci) {
-        CUSTOM_BOSS_BAR_TEXTURE.remove();
+    private static void gatewaysjs$cleanupBossBarConfig(CallbackInfo ci) {
+        CUSTOM_BOSS_BAR_CONFIG.remove();
     }
 
     /**
-     * 将 renderBossBar 中所有匹配的 blit 调用重定向，替换纹理参数。
-     * <p>
-     * 如果有自定义纹理，则使用自定义纹理调用原方法；否则使用原始纹理。
-     * </p>
+     * 通过原始 blit 调用的 v 坐标区分背景(v=60)和填充(v=65)。
      */
     @Redirect(
         method = "renderBossBar",
@@ -63,7 +52,22 @@ public class NormalGateClientMixin {
         remap = true)
     private static void gatewaysjs$redirectBlit(GuiGraphics gfx, ResourceLocation tex,
             int x, int y, float u, float v, int w, int h, int tw, int th) {
-        ResourceLocation custom = CUSTOM_BOSS_BAR_TEXTURE.get();
-        gfx.blit(custom != null ? custom : tex, x, y, u, v, w, h, tw, th);
+        BossBarRenderConfig config = CUSTOM_BOSS_BAR_CONFIG.get();
+        if (config != null) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            if (v == BG_V_ORIGINAL) {
+                gfx.blit(config.texture(), x, y, config.bgU(), config.bgV(),
+                        config.barWidth(), config.barHeight(),
+                        config.texWidth(), config.texHeight());
+            } else if (v == FILL_V_ORIGINAL) {
+                gfx.blit(config.getActualProgressTexture(), x, y, config.fillU(), config.fillV(),
+                        w, config.barHeight(),
+                        config.texWidth(), config.texHeight());
+            } else {
+                gfx.blit(tex, x, y, u, v, w, h, tw, th);
+            }
+        } else {
+            gfx.blit(tex, x, y, u, v, w, h, tw, th);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.hp.gatewaysjs.kubejs.builder;
 
+import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import com.hp.gatewaysjs.util.GatewayRenderData;
@@ -78,7 +79,7 @@ public class GatewayBuilder {
     @Nullable
     private ResourceLocation entityTexture;
     @Nullable
-    private ResourceLocation bossBarTexture;
+    private BossBarRenderConfig bossBarConfig;
 
     private GatewayBuilder(ResourceLocation id, boolean isCustom) {
         this.gatewayId = id;
@@ -200,15 +201,90 @@ public class GatewayBuilder {
     }
 
     /**
-     * 设置网关Boss条的自定义纹理路径。
+     * 设置网关Boss条的自定义纹理路径（使用默认UV布局）。
      * <p>
-     * 纹理布局必须与原版 {@code textures/gui/bars.png} 一致（256x256，
-     * Boss条背景在v=60处，填充在v=65处）。
+     * 默认UV布局和原版 {@code textures/gui/bars.png} 一致：
+     * 背景在(u=0, v=60)，填充在(u=0, v=65)，Boss条宽182高5，纹理尺寸256x256。
      * </p>
      * @param texturePath Boss条纹理的资源路径
      */
     public GatewayBuilder bossBarTexture(String texturePath) {
-        this.bossBarTexture = new ResourceLocation(texturePath);
+        this.bossBarConfig = new BossBarRenderConfig(new ResourceLocation(texturePath));
+        return this;
+    }
+
+    /**
+     * 设置网关Boss条的自定义纹理和完整渲染参数。
+     * <p>
+     * 适用于纹理布局不同于原版 {@code textures/gui/bars.png} 的情况。
+     * 例如，如果某个模组的Boss条纹理在(u=0, v=0)处为背景、(u=0, v=20)处为填充、宽度200、高度20、纹理尺寸512x512：
+     * <pre>
+     * .bossBar("mymod:textures/gui/my_boss_bar.png", 0, 0, 0, 20, 200, 20, 512, 512)
+     * </pre>
+     * </p>
+     * @param texturePath Boss条纹理的资源路径
+     * @param bgU         背景部分在纹理中的u坐标
+     * @param bgV         背景部分在纹理中的v坐标
+     * @param fillU       进度填充部分在纹理中的u坐标
+     * @param fillV       进度填充部分在纹理中的v坐标
+     * @param barWidth    Boss条的绘制宽度（像素）
+     * @param barHeight   Boss条的绘制高度（像素）
+     * @param texWidth    纹理的总宽度（像素）
+     * @param texHeight   纹理的总高度（像素）
+     */
+    public GatewayBuilder bossBar(String texturePath, double bgU, double bgV, double fillU, double fillV,
+                                  double barWidth, double barHeight, double texWidth, double texHeight) {
+        this.bossBarConfig = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            (float) bgU, (float) bgV, (float) fillU, (float) fillV,
+            (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
+        return this;
+    }
+
+    /**
+     * 双纹理模式——分别指定外表和进度两张纹理（使用默认UV布局）。
+     * <p>
+     * 默认UV布局和原版 {@code textures/gui/bars.png} 一致。
+     * </p>
+     * @param texturePath        外表纹理（空血条背景）
+     * @param progressTexturePath 进度纹理（血条填充）
+     */
+    public GatewayBuilder bossBar(String texturePath, String progressTexturePath) {
+        this.bossBarConfig = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            new ResourceLocation(progressTexturePath));
+        return this;
+    }
+
+    /**
+     * 双纹理模式——分别指定外表和进度两张纹理，并自定义完整UV参数。
+     * <p>
+     * 例如灾变模格的风气Boss条：
+     * <pre>
+     * .bossBar("cataclysm:textures/gui/boss_bar/leviathan_bar_base.png",
+     *          "cataclysm:textures/gui/boss_bar/leviathan_bar_overlay.png",
+     *          0, 0, 0, 5, 182, 16, 256, 16)
+     * </pre>
+     * </p>
+     * @param texturePath        外表纹理（空血条背景）
+     * @param progressTexturePath 进度纹理（血条填充）
+     * @param bgU         背景部分在纹理中的u坐标
+     * @param bgV         背景部分在纹理中的v坐标
+     * @param fillU       进度填充部分在纹理中的u坐标
+     * @param fillV       进度填充部分在纹理中的v坐标
+     * @param barWidth    Boss条的绘制宽度（像素）
+     * @param barHeight   Boss条的绘制高度（像素）
+     * @param texWidth    纹理的总宽度（像素）
+     * @param texHeight   纹理的总高度（像素）
+     */
+    public GatewayBuilder bossBar(String texturePath, String progressTexturePath,
+                                  double bgU, double bgV, double fillU, double fillV,
+                                  double barWidth, double barHeight, double texWidth, double texHeight) {
+        this.bossBarConfig = new BossBarRenderConfig(
+            new ResourceLocation(texturePath),
+            new ResourceLocation(progressTexturePath),
+            (float) bgU, (float) bgV, (float) fillU, (float) fillV,
+            (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         return this;
     }
 
@@ -521,9 +597,9 @@ public class GatewayBuilder {
         DynamicGatewayManager.register(gatewayId, gateway);
 
         // 如果有自定义纹理，存入纹理管理器
-        if (entityTexture != null || bossBarTexture != null) {
+        if (entityTexture != null || bossBarConfig != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(gatewayId,
-                new GatewayRenderData(entityTexture, bossBarTexture));
+                new GatewayRenderData(entityTexture, bossBarConfig));
         }
 
         return this;

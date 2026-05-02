@@ -5,7 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 存储自定义网关渲染数据（实体材质路径和Boss条材质路径）
+ * 存储自定义网关渲染数据（实体材质路径和Boss条渲染配置）
  */
 public class GatewayRenderData {
 
@@ -13,11 +13,15 @@ public class GatewayRenderData {
     private final ResourceLocation entityTexture;
 
     @Nullable
-    private final ResourceLocation bossBarTexture;
+    private final BossBarRenderConfig bossBarConfig;
 
-    public GatewayRenderData(@Nullable ResourceLocation entityTexture, @Nullable ResourceLocation bossBarTexture) {
+    /**
+     * @param entityTexture 自定义实体纹理路径（null=使用默认）
+     * @param bossBarConfig Boss条渲染配置（null=使用默认）
+     */
+    public GatewayRenderData(@Nullable ResourceLocation entityTexture, @Nullable BossBarRenderConfig bossBarConfig) {
         this.entityTexture = entityTexture;
-        this.bossBarTexture = bossBarTexture;
+        this.bossBarConfig = bossBarConfig;
     }
 
     /**
@@ -29,10 +33,10 @@ public class GatewayRenderData {
     }
 
     /**
-     * @return 自定义Boss条材质路径，未设置返回null
+     * @return 自定义Boss条渲染配置，未设置返回null
      */
     @Nullable
-    public ResourceLocation getBossBarTexture() {
-        return bossBarTexture;
+    public BossBarRenderConfig getBossBarConfig() {
+        return bossBarConfig;
     }
 }
