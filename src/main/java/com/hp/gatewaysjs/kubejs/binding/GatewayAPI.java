@@ -359,16 +359,21 @@ public interface GatewayAPI {
      * Gateway.customBuilder("mymod:test_gate")
      *     .color(0xFF0000)        // 红色
      *     .size("small")          // 小型传送门
-     *     .addWave()
-     *         .addEntity("minecraft:zombie", 3)
-     *         .maxTime(1200)      // 60秒
-     *         .addReward("minecraft:iron_ingot", 2)
-     *         .buildWave()
-     *     .addWave()
-     *         .addEntity("minecraft:skeleton", 2)
-     *         .addEntity("minecraft:spider", 1)
-     *         .maxTime(1500)
-     *         .buildWave()
+     *     .addWave(wave => {
+     *         wave.addEntity("minecraft:zombie", 3).modify(entity => {
+     *             entity.addAttribute("minecraft:generic.max_health", 20)
+     *             entity.addEffect("minecraft:strength", 1)
+     *         })
+     *         wave.maxTime(1200)      // 60秒
+     *         wave.addReward("minecraft:iron_ingot", 2)
+     *     })
+     *     .addWave(wave => {
+     *         wave.addEntity("minecraft:skeleton", 2).modify(entity => {
+     *             entity.setNbt("{CanPickUpLoot:1b}")
+     *         })
+     *         wave.addEntity("minecraft:spider", 1)
+     *         wave.maxTime(1500)
+     *     })
      *     .addReward("minecraft:diamond", 1)  // 完成奖励
      *     .register()            // 注册传送门
      *     .pos(x, y, z)
@@ -408,17 +413,27 @@ public interface GatewayAPI {
     /**
      * 为指定ID的网关设置自定义Boss条纹理（使用默认UV布局）。
      * <p>
+     * 单纹理模式：外表（空背景）和进度（填充）共用同一张纹理图，通过不同的 UV 坐标区分。
+     * </p>
+     * <p>
      * 默认UV布局和原版 {@code textures/gui/bars.png} 一致：
-     * 背景在(u=0, v=60)，填充在(u=0, v=65)，Boss条宽182高5，纹理尺寸256x256。
+     * <ul>
+     *   <li>背景：从纹理的 (u=0, v=60) 处裁剪</li>
+     *   <li>进度：从纹理的 (u=0, v=65) 处裁剪</li>
+     *   <li>血条尺寸：宽 182px，高 5px</li>
+     *   <li>纹理总尺寸：256×256 px</li>
+     * </ul>
+     * 渲染时先画背景（整条底色），再在上面叠加动态缩放的进度条（随血量从满宽逐步缩至0）。
      * </p>
      * <p>
      * JavaScript示例:
      * <pre>
-     * Gateway.setBossBarTexture("mymod:my_gate", "mymod:textures/gui/my_boss_bar.png");
+     * // 使用原版 bars.png，表现与原版完全一致
+     * Gateway.setBossBarTexture("mymod:my_gate", "minecraft:textures/gui/bars.png");
      * </pre>
      * </p>
      * @param gatewayId  网关ID
-     * @param texturePath Boss条纹理资源路径
+     * @param texturePath Boss条纹理资源路径（建议使用 "minecraft:textures/gui/bars.png"）
      */
     static void setBossBarTexture(String gatewayId, String texturePath) {
         ResourceLocation id = new ResourceLocation(gatewayId);
@@ -434,24 +449,47 @@ public interface GatewayAPI {
     }
 
     /**
-     * 为指定ID的网关设置自定义Boss条纹理和完整渲染参数。
+     * 为指定ID的网关设置自定义Boss条纹理和完整渲染参数（单纹理模式）。
      * <p>
-     * 适用于纹理布局不同于原版 {@code textures/gui/bars.png} 的情况。
-     * 例如，如果模组A的Boss条纹理在(u=0, v=0)处为背景、(u=0, v=20)处为填充：
+     * 外表和进度共用同一张纹理，但允许自定义 UV 坐标来选择纹理中的任意区域。
+     * 适用于纹理布局不符合原版 bars.png 规范，或想用同一纹理中不同区域做背景/进度的情况。
+     * </p>
+     *
+     * <h3>参数说明</h3>
+     * <p>
+     * 坐标系统：Minecraft 使用 (u, v) 从纹理图片中裁剪需要的部分。
+     * u 为水平方向（从左到右），v 为垂直方向（从上到下），(0,0) 在左上角，单位是像素。
+     * </p>
+     * <p>
+     * <b>渲染流程：</b>
+     * <ol>
+     *   <li>从 (bgU, bgV) 裁剪出 barWidth×barHeight 的区域作为底色背景</li>
+     *   <li>从 (fillU, fillV) 裁剪，宽度随 Boss 血量动态缩放，叠加在背景上</li>
+     * </ol>
+     * </p>
+     *
+     * <p>
+     * JavaScript示例:
      * <pre>
-     * Gateway.setBossBarTexture("mymod:my_gate", "othermod:textures/gui/boss_bar.png", 0, 0, 0, 20, 200, 20, 512, 512);
+     * // 使用原版 bars.png 自定义UV——选择不同的血条风格
+     * // bars.png 包含多行血条：v=0(粉色凋灵), v=10(紫色末影龙), v=60(默认暗色)
+     * Gateway.setBossBarTexture("mymod:my_gate", "minecraft:textures/gui/bars.png",
+     *     0, 0,   // bgU=0,    bgV=0    → 从纹理左上角裁剪背景（粉色凋灵条）
+     *     0, 5,   // fillU=0,  fillV=5  → 从 (0,5) 裁剪填充（紧挨着背景下一行）
+     *     182, 5, // barWidth=182, barHeight=5 → 血条渲染尺寸（宽182高5）
+     *     256, 256); // texWidth=256, texHeight=256 → 纹理原图实际尺寸
      * </pre>
      * </p>
      * @param gatewayId   网关ID
      * @param texturePath Boss条纹理资源路径
-     * @param bgU         背景部分在纹理中的u坐标
-     * @param bgV         背景部分在纹理中的v坐标
-     * @param fillU       进度填充部分在纹理中的u坐标
-     * @param fillV       进度填充部分在纹理中的v坐标
-     * @param barWidth    Boss条的绘制宽度（像素）
-     * @param barHeight   Boss条的绘制高度（像素）
-     * @param texWidth    纹理的总宽度（像素）
-     * @param texHeight   纹理的总高度（像素）
+     * @param bgU         背景裁剪的起始u坐标（像素），0表示从纹理最左边开始
+     * @param bgV         背景裁剪的起始v坐标（像素），0表示从纹理最上边开始
+     * @param fillU       进度裁剪的起始u坐标（像素），通常与bgU相同
+     * @param fillV       进度裁剪的起始v坐标（像素），通常与bgV错开一行以使用不同的贴图区域
+     * @param barWidth    Boss条在屏幕上的绘制宽度（像素），原版为182
+     * @param barHeight   Boss条在屏幕上的绘制高度（像素），原版为5
+     * @param texWidth    纹理图片的总宽度（像素），用于UV坐标归一化
+     * @param texHeight   纹理图片的总高度（像素），用于UV坐标归一化
      */
     static void setBossBarTexture(String gatewayId, String texturePath,
                                   double bgU, double bgV, double fillU, double fillV,
@@ -474,13 +512,22 @@ public interface GatewayAPI {
     /**
      * 双纹理模式——为指定ID的网关分别设置外表和进度纹理（使用默认UV布局）。
      * <p>
-     * 外表纹理是空血条背景，进度纹理是血条填充。
-     * 默认UV布局和原版 {@code textures/gui/bars.png} 一致。
+     * 外表纹理是空血条背景，进度纹理是血条填充，两者可以是两张独立的图片。
+     * 默认 UV 布局和原版 {@code textures/gui/bars.png} 一致：
+     * <ul>
+     *   <li>背景：从纹理的 (u=0, v=60) 处裁剪</li>
+     *   <li>进度：从纹理的 (u=0, v=65) 处裁剪</li>
+     *   <li>血条尺寸：宽 182px，高 5px</li>
+     *   <li>纹理总尺寸：256×256 px</li>
+     * </ul>
      * </p>
      * <p>
      * JavaScript示例:
      * <pre>
-     * Gateway.setBossBarTexture("mymod:my_gate", "cataclysm:textures/gui/boss_bar/leviathan_bar_base.png", "cataclysm:textures/gui/boss_bar/leviathan_bar_overlay.png");
+     * // 双纹理：外表和进度使用相同纹理（bars.png），通过UV区分
+     * Gateway.setBossBarTexture("mymod:my_gate",
+     *     "minecraft:textures/gui/bars.png",
+     *     "minecraft:textures/gui/bars.png");
      * </pre>
      * </p>
      * @param gatewayId         网关ID
@@ -505,25 +552,79 @@ public interface GatewayAPI {
     /**
      * 双纹理模式——为指定ID的网关分别设置外表和进度纹理，并自定义完整UV参数。
      * <p>
-     * JavaScript示例:
-     * <pre>
-     * Gateway.setBossBarTexture("mymod:my_gate",
-     *     "cataclysm:textures/gui/boss_bar/leviathan_bar_base.png",
-     *     "cataclysm:textures/gui/boss_bar/leviathan_bar_overlay.png",
-     *     0, 0, 0, 16, 182, 16, 256, 16);
-     * </pre>
+     * 这是最灵活的重载，允许对背景和进度使用两张独立的纹理，并精确控制每张贴图的裁剪区域。
+     * 适合使用模组提供的专用 Boss 条纹理（通常是两张分开的图片）。
      * </p>
+     *
+     * <h3>参数详细说明</h3>
+     * <p>
+     * <b>纹理坐标系统（UV）：</b>Minecraft 使用 (u, v) 从纹理图片中裁剪需要的部分。
+     * u 表示水平方向（从左到右），v 表示垂直方向（从上到下），(0, 0) 是纹理的左上角，单位是像素。
+     * </p>
+     *
+     * <table border="1">
+     *   <caption>参数作用说明</caption>
+     *   <tr><th>参数</th><th>说明</th></tr>
+     *   <tr><td>{@code texturePath}</td>
+     *       <td><b>外表纹理</b>——空血条的背景贴图，玩家看到的 Boss 条底色/底框。</td></tr>
+     *   <tr><td>{@code progressTexturePath}</td>
+     *       <td><b>进度纹理</b>——血条的填充贴图，会随 Boss 血量百分比被裁剪（从左到右收缩）。</td></tr>
+     *   <tr><td>{@code bgU}, {@code bgV}</td>
+     *       <td><b>背景裁剪坐标</b>——从外表纹理中裁剪背景的起始位置。(0,0) 表示从纹理左上角开始。</td></tr>
+     *   <tr><td>{@code fillU}, {@code fillV}</td>
+     *       <td><b>进度裁剪坐标</b>——从进度纹理中裁剪填充的起始位置。可与bgU/bgV相同（两张纹理布局一致时）。</td></tr>
+     *   <tr><td>{@code barWidth}</td>
+     *       <td><b>血条绘制宽度</b>（像素）——Boss 条在屏幕上渲染的总宽度，原版为182。</td></tr>
+     *   <tr><td>{@code barHeight}</td>
+     *       <td><b>血条绘制高度</b>（像素）——Boss 条在屏幕上渲染的总高度，原版为5。</td></tr>
+     *   <tr><td>{@code texWidth}</td>
+     *       <td><b>纹理图片总宽度</b>（像素）——用于将 UV 像素坐标归一化为 0.0~1.0 的纹理坐标。</td></tr>
+     *   <tr><td>{@code texHeight}</td>
+     *       <td><b>纹理图片总高度</b>（像素）——同上。</td></tr>
+     * </table>
+     *
+     * <h3>纹理资源路径说明</h3>
+     * <p>
+     * 路径格式为 {@code "命名空间:路径/文件.png"}，对应 {@code assets/命名空间/textures/路径/文件.png}。
+     * 可使用原版或其它模组的纹理（无需额外依赖）：
+     * <ul>
+     *   <li>{@code minecraft:textures/gui/bars.png} —— 原版 Boss 条纹理，256×256，
+     *       背景在 (u=0, v=60)，进度在 (u=0, v=65)，血条宽182高5。</li>
+     *   <li>{@code gateways:textures/entity/gateway.png} —— Gateways 模组的传送门实体纹理。</li>
+     *   <li>也可使用任意资源包或模组中的纹理。</li>
+     * </ul>
+     * </p>
+     *
+     * <h3>JavaScript 示例</h3>
+     * <pre>
+     * // 使用原版 bars.png 作为外表和进度，自定义UV选择粉色凋灵风格血条
+     * Gateway.setBossBarTexture("mymod:my_gate",
+     *     "minecraft:textures/gui/bars.png",
+     *     "minecraft:textures/gui/bars.png",
+     *     0, 0,   // bgU=0,   bgV=0   → 从 (0,0) 裁剪背景（粉色凋灵条）
+     *     0, 5,   // fillU=0, fillV=5 → 从 (0,5) 裁剪填充
+     *     182, 5, // barWidth=182, barHeight=5
+     *     256, 256); // texWidth=256, texHeight=256
+     * </pre>
+     *
+     * <h3>工作原理</h3>
+     * <p>
+     * 渲染时先绘制背景（从 texturePath 的 bgU/bgV 裁剪出整条底色），
+     * 再绘制进度（从 progressTexturePath 的 fillU/fillV 裁剪，宽度随血量动态缩放）。
+     * 两张纹理的 texWidth 和 texHeight 必须相同，因为共用同一套归一化坐标。
+     * </p>
+     *
      * @param gatewayId          网关ID
      * @param texturePath        外表纹理（空血条背景）
      * @param progressTexturePath 进度纹理（血条填充）
-     * @param bgU         背景部分在纹理中的u坐标
-     * @param bgV         背景部分在纹理中的v坐标
-     * @param fillU       进度填充部分在纹理中的u坐标
-     * @param fillV       进度填充部分在纹理中的v坐标
-     * @param barWidth    Boss条的绘制宽度（像素）
-     * @param barHeight   Boss条的绘制高度（像素）
-     * @param texWidth    纹理的总宽度（像素）
-     * @param texHeight   纹理的总高度（像素）
+     * @param bgU         背景裁剪的起始u坐标（像素），0表示从纹理最左边开始
+     * @param bgV         背景裁剪的起始v坐标（像素），0表示从纹理最上边开始
+     * @param fillU       进度裁剪的起始u坐标（像素），通常与bgU相同
+     * @param fillV       进度裁剪的起始v坐标（像素），通常与bgV错开一行以使用不同的贴图区域
+     * @param barWidth    Boss条在屏幕上的绘制宽度（像素），原版为182
+     * @param barHeight   Boss条在屏幕上的绘制高度（像素），原版为5
+     * @param texWidth    纹理图片的总宽度（像素），用于UV坐标归一化
+     * @param texHeight   纹理图片的总高度（像素），用于UV坐标归一化
      */
     static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath,
                                   double bgU, double bgV, double fillU, double fillV,

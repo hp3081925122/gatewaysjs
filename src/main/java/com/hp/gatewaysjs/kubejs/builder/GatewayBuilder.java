@@ -7,13 +7,23 @@ import com.hp.gatewaysjs.util.GatewayRenderData;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
+import dev.shadowsoffire.placebo.json.ChancedEffectInstance;
+import dev.shadowsoffire.placebo.json.GearSetRegistry;
+import dev.shadowsoffire.placebo.json.RandomAttributeModifier;
 import dev.shadowsoffire.gateways.gate.SpawnAlgorithms.SpawnAlgorithm;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
+import dev.shadowsoffire.placebo.util.StepFunction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -23,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * 动态传送门创建工具
@@ -43,11 +54,21 @@ import java.util.Optional;
  * GatewayBuilder.custom("mymod:custom_gate")
  *     .color(0xFF0000)  // 红色
  *     .size("small")    // 小型传送门
- *     .addWave()
- *         .addEntity("minecraft:zombie", 3)
- *         .maxTime(1200)
- *         .setupTime(60)
- *         .buildWave()
+ *     .addWave(wave -> {
+ *         wave.addEntity("minecraft:zombie", 3).modify(entity -> {
+ *             entity.addAttribute("minecraft:generic.max_health", 20);
+ *             entity.addEffect("minecraft:strength", 1);
+ *         });
+ *         wave.maxTime(1200);
+ *         wave.setupTime(60);
+ *     })
+ *     .addWave(wave -> {
+ *         wave.addEntity("minecraft:skeleton", 2).modify(entity -> {
+ *             entity.setNbt("{CanPickUpLoot:1b}");
+ *         });
+ *         wave.maxTime(800);
+ *         wave.setupTime(40);
+ *     })
  *     .addReward("minecraft:diamond", 1)
  *     .register()  // 注册传送门
  *     .pos(x, y, z)
@@ -295,6 +316,27 @@ public class GatewayBuilder {
         WaveBuilder builder = new WaveBuilder(this);
         waveBuilders.add(builder);
         return builder;
+    }
+
+    /**
+     * 添加一个波次，并在回调中直接配置波次内容
+     * <p>
+     * 示例：
+     * <pre>
+     * .addWave(wave -> {
+     *     wave.addEntity("minecraft:zombie", 3).modify(entity -> {
+     *         entity.addAttribute("minecraft:generic.max_health", 20);
+     *     });
+     *     wave.maxTime(1200);
+     *     wave.setupTime(60);
+     * })
+     * </pre>
+     * </p>
+     */
+    public GatewayBuilder addWave(Consumer<WaveBuilder> consumer) {
+        WaveBuilder builder = addWave();
+        consumer.accept(builder);
+        return this;
     }
 
     /**
@@ -676,7 +718,7 @@ public class GatewayBuilder {
      */
     public static class WaveBuilder {
         private final GatewayBuilder parent;
-        private final List<WaveEntity> entities = new ArrayList<>();
+        private final List<EntityConfig> entities = new ArrayList<>();
         private final List<WaveModifier> modifiers = Collections.emptyList();
         private final List<Reward> rewards = new ArrayList<>();
         private int maxWaveTime = 1200;  // 默认60秒
@@ -691,22 +733,15 @@ public class GatewayBuilder {
          * @param entityId 实体类型ID（如 "minecraft:zombie"）
          * @param count 数量
          */
-        public WaveBuilder addEntity(String entityId, int count) {
+        public WaveEntityBuilder addEntity(String entityId, int count) {
             EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(new ResourceLocation(entityId));
             if (type == null) {
                 throw new IllegalArgumentException("Unknown entity type: " + entityId);
             }
-            
-            WaveEntity waveEntity = new WaveEntity.StandardWaveEntity(
-                type,
-                Optional.empty(),
-                Optional.empty(),
-                Collections.emptyList(),
-                true,
-                count
-            );
-            entities.add(waveEntity);
-            return this;
+
+            EntityConfig entity = new EntityConfig(type, count);
+            entities.add(entity);
+            return new WaveEntityBuilder(this, entity);
         }
 
         /**
@@ -745,7 +780,187 @@ public class GatewayBuilder {
         }
 
         Wave build() {
-            return new Wave(entities, modifiers, rewards, maxWaveTime, setupTime);
+            List<WaveEntity> builtEntities = new ArrayList<>();
+            for (EntityConfig entity : entities) {
+                builtEntities.add(entity.build());
+            }
+            return new Wave(builtEntities, modifiers, rewards, maxWaveTime, setupTime);
+        }
+
+        private static class EntityConfig {
+            private final EntityType<?> type;
+            private final int count;
+            private final List<WaveModifier> modifiers = new ArrayList<>();
+            private String description;
+            private CompoundTag nbt;
+            private boolean finalizeSpawn = true;
+
+            private EntityConfig(EntityType<?> type, int count) {
+                this.type = type;
+                this.count = count;
+            }
+
+            private WaveEntity build() {
+                return new WaveEntity.StandardWaveEntity(
+                    type,
+                    Optional.ofNullable(description),
+                    Optional.ofNullable(nbt),
+                    List.copyOf(modifiers),
+                    finalizeSpawn,
+                    count
+                );
+            }
+        }
+
+        /**
+         * 单个波次实体的构建入口
+         */
+        public static class WaveEntityBuilder {
+            private final WaveBuilder parent;
+            private final EntityConfig entity;
+
+            private WaveEntityBuilder(WaveBuilder parent, EntityConfig entity) {
+                this.parent = parent;
+                this.entity = entity;
+            }
+
+            /**
+             * 修改刚添加的实体配置
+             */
+            public WaveBuilder modify(Consumer<EntityModifierBuilder> consumer) {
+                consumer.accept(new EntityModifierBuilder(entity));
+                return parent;
+            }
+        }
+
+        /**
+         * 单个实体的详细配置器
+         */
+        public static class EntityModifierBuilder {
+            private final EntityConfig entity;
+
+            private EntityModifierBuilder(EntityConfig entity) {
+                this.entity = entity;
+            }
+
+            /**
+             * 添加属性修饰，默认使用 addition
+             */
+            public EntityModifierBuilder addAttribute(String attributeId, Number value) {
+                return addAttribute(attributeId, value, "addition");
+            }
+
+            /**
+             * 添加属性修饰
+             * @param attributeId 属性ID，如 "minecraft:generic.max_health"
+             * @param value 修饰值
+             * @param operation 操作类型，可用值：addition、multiply_base、multiply_total
+             */
+            public EntityModifierBuilder addAttribute(String attributeId, Number value, String operation) {
+                ResourceLocation id = new ResourceLocation(attributeId);
+                if (!BuiltInRegistries.ATTRIBUTE.containsKey(id)) {
+                    throw new IllegalArgumentException("Unknown attribute: " + attributeId);
+                }
+
+                Attribute attribute = BuiltInRegistries.ATTRIBUTE.get(id);
+                AttributeModifier.Operation op = parseAttributeOperation(operation);
+                entity.modifiers.add(new WaveModifier.AttributeModifier(
+                    new RandomAttributeModifier(attribute, op, StepFunction.constant(value.floatValue()))
+                ));
+                return this;
+            }
+
+            /**
+             * 添加状态效果，默认 100% 概率、非环境粒子、显示粒子
+             */
+            public EntityModifierBuilder addEffect(String effectId, Number amplifier) {
+                return addEffect(effectId, amplifier, 1.0F, false, true);
+            }
+
+            /**
+             * 添加状态效果
+             */
+            public EntityModifierBuilder addEffect(String effectId, Number amplifier, Number chance) {
+                return addEffect(effectId, amplifier, chance, false, true);
+            }
+
+            /**
+             * 添加状态效果
+             * @param effectId 效果ID，如 "minecraft:strength"
+             * @param amplifier 效果等级，0 表示 1 级
+             * @param chance 生效概率，范围 0~1
+             * @param ambient 是否为环境效果
+             * @param visible 是否显示粒子
+             */
+            public EntityModifierBuilder addEffect(String effectId, Number amplifier, Number chance, boolean ambient, boolean visible) {
+                ResourceLocation id = new ResourceLocation(effectId);
+                if (!BuiltInRegistries.MOB_EFFECT.containsKey(id)) {
+                    throw new IllegalArgumentException("Unknown effect: " + effectId);
+                }
+
+                MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
+                entity.modifiers.add(new WaveModifier.EffectModifier(
+                    new ChancedEffectInstance(
+                        chance.floatValue(),
+                        effect,
+                        StepFunction.constant(amplifier.floatValue()),
+                        ambient,
+                        visible
+                    )
+                ));
+                return this;
+            }
+
+            /**
+             * 添加装备套装修饰
+             */
+            public EntityModifierBuilder addGearSet(String gearSetId) {
+                entity.modifiers.add(new WaveModifier.GearSetModifier(
+                    GearSetRegistry.INSTANCE.holder(new ResourceLocation(gearSetId))
+                ));
+                return this;
+            }
+
+            /**
+             * 设置实体描述文本
+             */
+            public EntityModifierBuilder setDescription(String description) {
+                entity.description = description;
+                return this;
+            }
+
+            /**
+             * 设置实体NBT
+             */
+            public EntityModifierBuilder setNbt(String nbtString) {
+                try {
+                    entity.nbt = TagParser.parseTag(nbtString);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Invalid entity NBT: " + nbtString, e);
+                }
+                return this;
+            }
+
+            /**
+             * 设置是否执行实体原版初始化
+             */
+            public EntityModifierBuilder finalizeSpawn(boolean finalizeSpawn) {
+                entity.finalizeSpawn = finalizeSpawn;
+                return this;
+            }
+
+            private static AttributeModifier.Operation parseAttributeOperation(String operation) {
+                if (operation == null) {
+                    return AttributeModifier.Operation.ADDITION;
+                }
+
+                return switch (operation.toLowerCase()) {
+                    case "addition", "add" -> AttributeModifier.Operation.ADDITION;
+                    case "multiply_base", "multiplybase", "base" -> AttributeModifier.Operation.MULTIPLY_BASE;
+                    case "multiply_total", "multiplytotal", "total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
+                    default -> throw new IllegalArgumentException("Unknown attribute operation: " + operation);
+                };
+            }
         }
     }
 }
