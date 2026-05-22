@@ -5,10 +5,11 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "gatewaysjs.refmap.json",
   "mixins": [
+    "GatePearlItemNameMixin",
+    "GatewayEntityAccessor",
     "GatewayEntityPersistenceMixin"
   ],
   "client": [
-    "GatewayEntityAccessor",
     "GatewayRendererMixin",
     "NormalGateClientMixin"
   ],

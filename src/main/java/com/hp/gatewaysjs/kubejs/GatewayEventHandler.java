@@ -1,5 +1,6 @@
 package com.hp.gatewaysjs.kubejs;
 
+import com.hp.gatewaysjs.mixin.GatewayEntityAccessor;
 import com.hp.gatewaysjs.kubejs.event.GateOpenedEventJS;
 import com.hp.gatewaysjs.kubejs.event.GateCompletedEventJS;
 import com.hp.gatewaysjs.kubejs.event.GateFailedEventJS;
@@ -7,7 +8,11 @@ import com.hp.gatewaysjs.kubejs.event.WaveStartedEventJS;
 import com.hp.gatewaysjs.kubejs.event.WaveEndedEventJS;
 import com.hp.gatewaysjs.kubejs.event.WaveEntitySpawnedEventJS;
 import com.hp.gatewaysjs.kubejs.event.GatewaysEvents;
+import com.hp.gatewaysjs.util.DynamicGatewayManager;
+import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -29,6 +34,7 @@ public class GatewayEventHandler {
      */
     @SubscribeEvent
     public static void onGateOpened(GateEvent.Opened event) {
+        applyDynamicDisplayName(event.getEntity());
         if (GatewaysEvents.OPENED.hasListeners()) {
             GatewaysEvents.OPENED.post(new GateOpenedEventJS(event));
         }
@@ -59,6 +65,7 @@ public class GatewayEventHandler {
      */
     @SubscribeEvent
     public static void onWaveStarted(GateEvent.WaveStarted event) {
+        applyDynamicDisplayName(event.getEntity());
         if (GatewaysEvents.WAVE_STARTED.hasListeners()) {
             GatewaysEvents.WAVE_STARTED.post(new WaveStartedEventJS(event));
         }
@@ -82,5 +89,16 @@ public class GatewayEventHandler {
         if (GatewaysEvents.WAVE_ENTITY_SPAWNED.hasListeners()) {
             GatewaysEvents.WAVE_ENTITY_SPAWNED.post(new WaveEntitySpawnedEventJS(event));
         }
+    }
+
+    private static void applyDynamicDisplayName(GatewayEntity entity) {
+        ResourceLocation id = ((GatewayEntityAccessor) entity).getGate().getId();
+        String displayName = DynamicGatewayManager.getDisplayName(id);
+        if (displayName == null || displayName.isEmpty()) {
+            return;
+        }
+
+        Component name = Component.literal(displayName);
+        entity.setCustomName(name);
     }
 }

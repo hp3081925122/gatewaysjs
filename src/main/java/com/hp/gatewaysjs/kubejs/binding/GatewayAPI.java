@@ -359,6 +359,9 @@ public interface GatewayAPI {
      * Gateway.customBuilder("mymod:test_gate")
      *     .color(0xFF0000)        // 红色
      *     .size("small")          // 小型传送门
+     *     .addAttribute("minecraft:generic.max_health", 20) // 所有波次实体都加生命
+     *     .addEffect("minecraft:strength", 1)               // 所有波次实体都加力量
+     *     .addNbt("{CanPickUpLoot:1b}")                     // 所有波次实体都能捡装备
      *     .addWave(wave => {
      *         wave.addEntity("minecraft:zombie", 3).modify(entity => {
      *             entity.addAttribute("minecraft:generic.max_health", 20)

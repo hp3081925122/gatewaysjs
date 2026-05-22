@@ -54,11 +54,16 @@ import java.util.function.Consumer;
  * GatewayBuilder.custom("mymod:custom_gate")
  *     .color(0xFF0000)  // 红色
  *     .size("small")    // 小型传送门
+ *     .addAttribute("minecraft:generic.max_health", 20) // 所有波次实体都加生命
+ *     .addEffect("minecraft:strength", 1)               // 所有波次实体都加力量
+ *     .addNbt("{CanPickUpLoot:1b}")                     // 所有波次实体都能捡装备
  *     .addWave(wave -> {
  *         wave.addEntity("minecraft:zombie", 3).modify(entity -> {
  *             entity.addAttribute("minecraft:generic.max_health", 20);
  *             entity.addEffect("minecraft:strength", 1);
  *         });
+ *         wave.addAttribute("minecraft:generic.attack_damage", 4);
+ *         wave.addEffect("minecraft:speed", 0);
  *         wave.maxTime(1200);
  *         wave.setupTime(60);
  *     })
@@ -66,6 +71,7 @@ import java.util.function.Consumer;
  *         wave.addEntity("minecraft:skeleton", 2).modify(entity -> {
  *             entity.setNbt("{CanPickUpLoot:1b}");
  *         });
+ *         wave.addGearSet("placebo:example");
  *         wave.maxTime(800);
  *         wave.setupTime(40);
  *     })
@@ -77,6 +83,15 @@ import java.util.function.Consumer;
  */
 @SuppressWarnings("removal")
 public class GatewayBuilder {
+
+    /**
+     * 属性修饰操作类型
+     */
+    public enum AttributeOperation {
+        addition,
+        multiply_base,
+        multiply_total
+    }
 
     private final ResourceLocation gatewayId;
     private final boolean isCustom;
@@ -92,6 +107,11 @@ public class GatewayBuilder {
     private final List<WaveBuilder> waveBuilders = new ArrayList<>();
     private final List<Reward> rewards = new ArrayList<>();
     private final List<Failure> failures = new ArrayList<>();
+    private final List<WaveModifier> globalModifiers = new ArrayList<>();
+    private String globalDescription;
+    private CompoundTag globalNbt;
+    @Nullable
+    private Boolean globalFinalizeSpawn;
     private SpawnAlgorithm spawnAlgo = SpawnAlgorithms.OPEN_FIELD;
     private GateRules rules = GateRules.DEFAULT;
     private BossEventSettings bossSettings = BossEventSettings.DEFAULT;
@@ -204,6 +224,88 @@ public class GatewayBuilder {
 
     public GatewayBuilder setColor(Number hexColor) {
         return color(hexColor);
+    }
+
+    /**
+     * 为所有波次里的全部实体添加属性修饰，默认使用 addition
+     */
+    public GatewayBuilder addAttribute(Attribute attribute, Number value) {
+        return addAttribute(attribute, value, AttributeOperation.addition);
+    }
+
+    /**
+     * 为所有波次里的全部实体添加属性修饰
+     */
+    public GatewayBuilder addAttribute(Attribute attribute, Number value, AttributeOperation operation) {
+        globalModifiers.add(WaveBuilder.EntityModifierBuilder.createAttributeModifier(attribute, value, operation));
+        return this;
+    }
+
+    /**
+     * 为所有波次里的全部实体添加状态效果，默认 100% 概率、非环境粒子、显示粒子
+     */
+    public GatewayBuilder addEffect(MobEffect effect, Number amplifier) {
+        return addEffect(effect, amplifier, 1.0F, false, true);
+    }
+
+    /**
+     * 为所有波次里的全部实体添加状态效果
+     */
+    public GatewayBuilder addEffect(MobEffect effect, Number amplifier, Number chance) {
+        return addEffect(effect, amplifier, chance, false, true);
+    }
+
+    /**
+     * 为所有波次里的全部实体添加状态效果
+     */
+    public GatewayBuilder addEffect(MobEffect effect, Number amplifier, Number chance, boolean ambient, boolean visible) {
+        globalModifiers.add(WaveBuilder.EntityModifierBuilder.createEffectModifier(effect, amplifier, chance, ambient, visible));
+        return this;
+    }
+
+    /**
+     * 为所有波次里的全部实体添加装备套装修饰
+     */
+    public GatewayBuilder addGearSet(String gearSetId) {
+        globalModifiers.add(WaveBuilder.EntityModifierBuilder.createGearSetModifier(gearSetId));
+        return this;
+    }
+
+    /**
+     * 设置所有波次实体的默认描述文本，实体单独设置时会覆盖这里
+     */
+    public GatewayBuilder setDescription(String description) {
+        this.globalDescription = description;
+        return this;
+    }
+
+    /**
+     * 设置所有波次实体的默认 NBT，实体单独设置时会合并并优先覆盖这里
+     */
+    public GatewayBuilder setNbt(String nbtString) {
+        this.globalNbt = parseNbt(nbtString);
+        return this;
+    }
+
+    /**
+     * 合并所有波次实体的默认 NBT，可多次调用
+     */
+    public GatewayBuilder addNbt(String nbtString) {
+        CompoundTag tag = parseNbt(nbtString);
+        if (this.globalNbt == null) {
+            this.globalNbt = tag;
+        } else {
+            this.globalNbt.merge(tag);
+        }
+        return this;
+    }
+
+    /**
+     * 设置所有波次实体是否执行原版初始化，实体单独设置时会覆盖这里
+     */
+    public GatewayBuilder finalizeSpawn(boolean finalizeSpawn) {
+        this.globalFinalizeSpawn = finalizeSpawn;
+        return this;
     }
 
     // ==================== 自定义纹理 ====================
@@ -323,10 +425,12 @@ public class GatewayBuilder {
      * <p>
      * 示例：
      * <pre>
-     * .addWave(wave -> {
-     *     wave.addEntity("minecraft:zombie", 3).modify(entity -> {
-     *         entity.addAttribute("minecraft:generic.max_health", 20);
-     *     });
+ * .addWave(wave -> {
+ *     wave.addEntity("minecraft:zombie", 3).modify(entity -> {
+ *         entity.addAttribute("minecraft:generic.max_health", 20);
+ *     });
+     *     wave.addAttribute("minecraft:generic.attack_damage", 4);
+     *     wave.addEffect("minecraft:speed", 0);
      *     wave.maxTime(1200);
      *     wave.setupTime(60);
      * })
@@ -636,7 +740,7 @@ public class GatewayBuilder {
         );
 
         // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
-        DynamicGatewayManager.register(gatewayId, gateway);
+        DynamicGatewayManager.register(gatewayId, gateway, customName);
 
         // 如果有自定义纹理，存入纹理管理器
         if (entityTexture != null || bossBarConfig != null) {
@@ -719,7 +823,7 @@ public class GatewayBuilder {
     public static class WaveBuilder {
         private final GatewayBuilder parent;
         private final List<EntityConfig> entities = new ArrayList<>();
-        private final List<WaveModifier> modifiers = Collections.emptyList();
+        private final List<WaveModifier> modifiers = new ArrayList<>();
         private final List<Reward> rewards = new ArrayList<>();
         private int maxWaveTime = 1200;  // 默认60秒
         private int setupTime = 60;      // 默认3秒
@@ -742,6 +846,51 @@ public class GatewayBuilder {
             EntityConfig entity = new EntityConfig(type, count);
             entities.add(entity);
             return new WaveEntityBuilder(this, entity);
+        }
+
+        /**
+         * 为本波所有实体添加属性修饰，默认使用 addition
+         */
+        public WaveBuilder addAttribute(Attribute attribute, Number value) {
+            return addAttribute(attribute, value, AttributeOperation.addition);
+        }
+
+        /**
+         * 为本波所有实体添加属性修饰
+         */
+        public WaveBuilder addAttribute(Attribute attribute, Number value, AttributeOperation operation) {
+            modifiers.add(EntityModifierBuilder.createAttributeModifier(attribute, value, operation));
+            return this;
+        }
+
+        /**
+         * 为本波所有实体添加状态效果，默认 100% 概率、非环境粒子、显示粒子
+         */
+        public WaveBuilder addEffect(MobEffect effect, Number amplifier) {
+            return addEffect(effect, amplifier, 1.0F, false, true);
+        }
+
+        /**
+         * 为本波所有实体添加状态效果
+         */
+        public WaveBuilder addEffect(MobEffect effect, Number amplifier, Number chance) {
+            return addEffect(effect, amplifier, chance, false, true);
+        }
+
+        /**
+         * 为本波所有实体添加状态效果
+         */
+        public WaveBuilder addEffect(MobEffect effect, Number amplifier, Number chance, boolean ambient, boolean visible) {
+            modifiers.add(EntityModifierBuilder.createEffectModifier(effect, amplifier, chance, ambient, visible));
+            return this;
+        }
+
+        /**
+         * 为本波所有实体添加装备套装修饰
+         */
+        public WaveBuilder addGearSet(String gearSetId) {
+            modifiers.add(EntityModifierBuilder.createGearSetModifier(gearSetId));
+            return this;
         }
 
         /**
@@ -780,11 +929,14 @@ public class GatewayBuilder {
         }
 
         Wave build() {
+            List<WaveModifier> builtModifiers = new ArrayList<>(parent.globalModifiers);
+            builtModifiers.addAll(modifiers);
+
             List<WaveEntity> builtEntities = new ArrayList<>();
             for (EntityConfig entity : entities) {
-                builtEntities.add(entity.build());
+                builtEntities.add(entity.build(parent));
             }
-            return new Wave(builtEntities, modifiers, rewards, maxWaveTime, setupTime);
+            return new Wave(builtEntities, builtModifiers, rewards, maxWaveTime, setupTime);
         }
 
         private static class EntityConfig {
@@ -793,20 +945,25 @@ public class GatewayBuilder {
             private final List<WaveModifier> modifiers = new ArrayList<>();
             private String description;
             private CompoundTag nbt;
-            private boolean finalizeSpawn = true;
+            @Nullable
+            private Boolean finalizeSpawn;
 
             private EntityConfig(EntityType<?> type, int count) {
                 this.type = type;
                 this.count = count;
             }
 
-            private WaveEntity build() {
+            private WaveEntity build(GatewayBuilder gateway) {
+                CompoundTag builtNbt = mergeNbt(gateway.globalNbt, nbt);
+                String builtDescription = description != null ? description : gateway.globalDescription;
+                boolean builtFinalizeSpawn = finalizeSpawn != null ? finalizeSpawn : gateway.globalFinalizeSpawn != null ? gateway.globalFinalizeSpawn : true;
+
                 return new WaveEntity.StandardWaveEntity(
                     type,
-                    Optional.ofNullable(description),
-                    Optional.ofNullable(nbt),
+                    Optional.ofNullable(builtDescription),
+                    Optional.ofNullable(builtNbt),
                     List.copyOf(modifiers),
-                    finalizeSpawn,
+                    builtFinalizeSpawn,
                     count
                 );
             }
@@ -846,68 +1003,45 @@ public class GatewayBuilder {
             /**
              * 添加属性修饰，默认使用 addition
              */
-            public EntityModifierBuilder addAttribute(String attributeId, Number value) {
-                return addAttribute(attributeId, value, "addition");
+            public EntityModifierBuilder addAttribute(Attribute attribute, Number value) {
+                return addAttribute(attribute, value, AttributeOperation.addition);
             }
 
             /**
              * 添加属性修饰
-             * @param attributeId 属性ID，如 "minecraft:generic.max_health"
+             * @param attribute 属性ID，如 "minecraft:generic.max_health"
              * @param value 修饰值
              * @param operation 操作类型，可用值：addition、multiply_base、multiply_total
              */
-            public EntityModifierBuilder addAttribute(String attributeId, Number value, String operation) {
-                ResourceLocation id = new ResourceLocation(attributeId);
-                if (!BuiltInRegistries.ATTRIBUTE.containsKey(id)) {
-                    throw new IllegalArgumentException("Unknown attribute: " + attributeId);
-                }
-
-                Attribute attribute = BuiltInRegistries.ATTRIBUTE.get(id);
-                AttributeModifier.Operation op = parseAttributeOperation(operation);
-                entity.modifiers.add(new WaveModifier.AttributeModifier(
-                    new RandomAttributeModifier(attribute, op, StepFunction.constant(value.floatValue()))
-                ));
+            public EntityModifierBuilder addAttribute(Attribute attribute, Number value, AttributeOperation operation) {
+                entity.modifiers.add(createAttributeModifier(attribute, value, operation));
                 return this;
             }
 
             /**
              * 添加状态效果，默认 100% 概率、非环境粒子、显示粒子
              */
-            public EntityModifierBuilder addEffect(String effectId, Number amplifier) {
-                return addEffect(effectId, amplifier, 1.0F, false, true);
+            public EntityModifierBuilder addEffect(MobEffect effect, Number amplifier) {
+                return addEffect(effect, amplifier, 1.0F, false, true);
             }
 
             /**
              * 添加状态效果
              */
-            public EntityModifierBuilder addEffect(String effectId, Number amplifier, Number chance) {
-                return addEffect(effectId, amplifier, chance, false, true);
+            public EntityModifierBuilder addEffect(MobEffect effect, Number amplifier, Number chance) {
+                return addEffect(effect, amplifier, chance, false, true);
             }
 
             /**
              * 添加状态效果
-             * @param effectId 效果ID，如 "minecraft:strength"
+             * @param effect 效果ID，如 "minecraft:strength"
              * @param amplifier 效果等级，0 表示 1 级
              * @param chance 生效概率，范围 0~1
              * @param ambient 是否为环境效果
              * @param visible 是否显示粒子
              */
-            public EntityModifierBuilder addEffect(String effectId, Number amplifier, Number chance, boolean ambient, boolean visible) {
-                ResourceLocation id = new ResourceLocation(effectId);
-                if (!BuiltInRegistries.MOB_EFFECT.containsKey(id)) {
-                    throw new IllegalArgumentException("Unknown effect: " + effectId);
-                }
-
-                MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
-                entity.modifiers.add(new WaveModifier.EffectModifier(
-                    new ChancedEffectInstance(
-                        chance.floatValue(),
-                        effect,
-                        StepFunction.constant(amplifier.floatValue()),
-                        ambient,
-                        visible
-                    )
-                ));
+            public EntityModifierBuilder addEffect(MobEffect effect, Number amplifier, Number chance, boolean ambient, boolean visible) {
+                entity.modifiers.add(createEffectModifier(effect, amplifier, chance, ambient, visible));
                 return this;
             }
 
@@ -915,9 +1049,7 @@ public class GatewayBuilder {
              * 添加装备套装修饰
              */
             public EntityModifierBuilder addGearSet(String gearSetId) {
-                entity.modifiers.add(new WaveModifier.GearSetModifier(
-                    GearSetRegistry.INSTANCE.holder(new ResourceLocation(gearSetId))
-                ));
+                entity.modifiers.add(createGearSetModifier(gearSetId));
                 return this;
             }
 
@@ -933,10 +1065,19 @@ public class GatewayBuilder {
              * 设置实体NBT
              */
             public EntityModifierBuilder setNbt(String nbtString) {
-                try {
-                    entity.nbt = TagParser.parseTag(nbtString);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Invalid entity NBT: " + nbtString, e);
+                entity.nbt = parseNbt(nbtString);
+                return this;
+            }
+
+            /**
+             * 合并实体NBT，可多次调用
+             */
+            public EntityModifierBuilder addNbt(String nbtString) {
+                CompoundTag tag = parseNbt(nbtString);
+                if (entity.nbt == null) {
+                    entity.nbt = tag;
+                } else {
+                    entity.nbt.merge(tag);
                 }
                 return this;
             }
@@ -949,18 +1090,71 @@ public class GatewayBuilder {
                 return this;
             }
 
-            private static AttributeModifier.Operation parseAttributeOperation(String operation) {
+            private static AttributeModifier.Operation parseAttributeOperation(AttributeOperation operation) {
                 if (operation == null) {
                     return AttributeModifier.Operation.ADDITION;
                 }
 
-                return switch (operation.toLowerCase()) {
-                    case "addition", "add" -> AttributeModifier.Operation.ADDITION;
-                    case "multiply_base", "multiplybase", "base" -> AttributeModifier.Operation.MULTIPLY_BASE;
-                    case "multiply_total", "multiplytotal", "total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
-                    default -> throw new IllegalArgumentException("Unknown attribute operation: " + operation);
+                return switch (operation) {
+                    case addition -> AttributeModifier.Operation.ADDITION;
+                    case multiply_base -> AttributeModifier.Operation.MULTIPLY_BASE;
+                    case multiply_total -> AttributeModifier.Operation.MULTIPLY_TOTAL;
                 };
             }
+
+            public static WaveModifier.AttributeModifier createAttributeModifier(Attribute attribute, Number value, AttributeOperation operation) {
+                if (attribute == null) {
+                    throw new IllegalArgumentException("Attribute cannot be null");
+                }
+
+                AttributeModifier.Operation op = parseAttributeOperation(operation);
+                return new WaveModifier.AttributeModifier(
+                    new RandomAttributeModifier(attribute, op, StepFunction.constant(value.floatValue()))
+                );
+            }
+
+            public static WaveModifier.EffectModifier createEffectModifier(MobEffect effect, Number amplifier, Number chance, boolean ambient, boolean visible) {
+                if (effect == null) {
+                    throw new IllegalArgumentException("Effect cannot be null");
+                }
+
+                return new WaveModifier.EffectModifier(
+                    new ChancedEffectInstance(
+                        chance.floatValue(),
+                        effect,
+                        StepFunction.constant(amplifier.floatValue()),
+                        ambient,
+                        visible
+                    )
+                );
+            }
+
+            public static WaveModifier.GearSetModifier createGearSetModifier(String gearSetId) {
+                return new WaveModifier.GearSetModifier(
+                    GearSetRegistry.INSTANCE.holder(new ResourceLocation(gearSetId))
+                );
+            }
         }
+    }
+
+    private static CompoundTag parseNbt(String nbtString) {
+        try {
+            return TagParser.parseTag(nbtString);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid entity NBT: " + nbtString, e);
+        }
+    }
+
+    @Nullable
+    private static CompoundTag mergeNbt(@Nullable CompoundTag base, @Nullable CompoundTag override) {
+        if (base == null && override == null) {
+            return null;
+        }
+
+        CompoundTag merged = base == null ? new CompoundTag() : base.copy();
+        if (override != null) {
+            merged.merge(override);
+        }
+        return merged;
     }
 }

@@ -26,6 +26,7 @@ public final class DynamicGatewayManager {
 
     private static final String GATEWAY_REGISTRY_PATH = "gateways";
     private static final Map<ResourceLocation, Gateway> DYNAMIC_GATEWAYS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, String> DISPLAY_NAMES = new LinkedHashMap<>();
     private static boolean restoredForCurrentServer = false;
 
     private DynamicGatewayManager() {
@@ -44,8 +45,21 @@ public final class DynamicGatewayManager {
 
     // Registers a runtime gateway, writes it into world save data, and syncs it to clients.
     public static boolean register(ResourceLocation id, Gateway gateway) {
+        return register(id, gateway, null);
+    }
+
+    public static boolean register(ResourceLocation id, Gateway gateway, String displayName) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (displayName != null && !displayName.isEmpty()) {
+            DISPLAY_NAMES.put(id, displayName);
+        } else {
+            DISPLAY_NAMES.remove(id);
+        }
         return registerInternal(id, gateway, server, true, server != null);
+    }
+
+    public static String getDisplayName(ResourceLocation id) {
+        return DISPLAY_NAMES.get(id);
     }
 
     // Restores persisted dynamic gateways as early as the server lifecycle allows.
@@ -70,6 +84,7 @@ public final class DynamicGatewayManager {
     // Clears server-scoped runtime cache so separate saves do not leak gateways into each other.
     public static void onServerStopped(ServerStoppedEvent event) {
         DYNAMIC_GATEWAYS.clear();
+        DISPLAY_NAMES.clear();
         restoredForCurrentServer = false;
     }
 
