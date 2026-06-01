@@ -176,7 +176,7 @@ dependencies {
     //Apothic Attributes
     implementation fg.deobf("curse.maven:mutil-898963:5634071")
     implementation fg.deobf("curse.maven:kubejs-238086:5853326")
-    implementation fg.deobf("curse.maven:architectury-api-419699:5194187")
+    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
     implementation fg.deobf("curse.maven:rhino-416294:6186971")
 
 }
@@ -217,4 +217,8 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+tasks.withType(JavaExec).configureEach {
+    modularity.inferModulePath = false
 }

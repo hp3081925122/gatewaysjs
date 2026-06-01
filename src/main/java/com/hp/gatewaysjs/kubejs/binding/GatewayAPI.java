@@ -3,6 +3,7 @@ package com.hp.gatewaysjs.kubejs.binding;
 import com.hp.gatewaysjs.kubejs.builder.GatewayBuilder;
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayWrapper;
 import com.hp.gatewaysjs.util.BossBarRenderConfig;
+import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import com.hp.gatewaysjs.util.GatewayRenderData;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
@@ -385,6 +386,20 @@ public interface GatewayAPI {
      */
     static GatewayBuilder customBuilder(String id) {
         return GatewayBuilder.custom(id);
+    }
+
+    /**
+     * 在创造物品栏中隐藏指定传送门对应的珍珠
+     */
+    static void hidePearlInCreativeTab(String gatewayId) {
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(new ResourceLocation(gatewayId), true);
+    }
+
+    /**
+     * 恢复指定传送门珍珠在创造物品栏中的显示
+     */
+    static void showPearlInCreativeTab(String gatewayId) {
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(new ResourceLocation(gatewayId), false);
     }
 
     // ==================== 自定义纹理设置 ====================

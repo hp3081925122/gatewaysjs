@@ -100,6 +100,9 @@ public class GatewayBuilder {
     private double x, y, z;
     private Player summoner;
     private String customName;  // 自定义名称
+    private String tooltipKey;  // JEI珍珠提示汉化键
+    private String tooltipText; // JEI珍珠提示文本
+    private boolean hidePearlInCreativeTab;
     
     // 自定义传送门属性
     private Gateway.Size size = Gateway.Size.SMALL;
@@ -179,6 +182,38 @@ public class GatewayBuilder {
      */
     public GatewayBuilder name(String name) {
         this.customName = name;
+        return this;
+    }
+
+    /**
+     * 设置 JEI 珍珠提示的汉化键
+     */
+    public GatewayBuilder tooltipKey(String key) {
+        this.tooltipKey = key;
+        return this;
+    }
+
+    /**
+     * 设置 JEI 珍珠提示的直接显示文本
+     */
+    public GatewayBuilder tooltipText(String text) {
+        this.tooltipText = text;
+        return this;
+    }
+
+    /**
+     * 在创造物品栏中隐藏这个传送门对应的珍珠
+     */
+    public GatewayBuilder hidePearlInCreativeTab() {
+        this.hidePearlInCreativeTab = true;
+        return this;
+    }
+
+    /**
+     * 控制这个传送门对应的珍珠是否显示在创造物品栏中
+     */
+    public GatewayBuilder showPearlInCreativeTab(boolean show) {
+        this.hidePearlInCreativeTab = !show;
         return this;
     }
 
@@ -740,7 +775,7 @@ public class GatewayBuilder {
         );
 
         // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
-        DynamicGatewayManager.register(gatewayId, gateway, customName);
+        DynamicGatewayManager.register(gatewayId, gateway, customName, tooltipKey, tooltipText, hidePearlInCreativeTab);
 
         // 如果有自定义纹理，存入纹理管理器
         if (entityTexture != null || bossBarConfig != null) {

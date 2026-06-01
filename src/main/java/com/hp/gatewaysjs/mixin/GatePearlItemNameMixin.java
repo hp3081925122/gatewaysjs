@@ -1,11 +1,9 @@
 package com.hp.gatewaysjs.mixin;
 
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
-import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.item.GatePearlItem;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,19 +23,17 @@ public class GatePearlItemNameMixin {
             return;
         }
 
-        DynamicHolder<Gateway> holder = GatePearlItem.getGate(stack);
-        if (!holder.isBound()) {
+        CompoundTag tag = stack.getTag();
+        if (tag == null || !tag.contains("gateway")) {
             return;
         }
 
-        ResourceLocation id = holder.getId();
+        ResourceLocation id = ResourceLocation.parse(tag.getString("gateway"));
         String displayName = DynamicGatewayManager.getDisplayName(id);
         if (displayName == null || displayName.isEmpty()) {
             return;
         }
 
-        Component pearlName = Component.translatable("gateways.gate_pearl", Component.literal(displayName))
-            .withStyle(Style.EMPTY.withColor(holder.get().color()));
-        cir.setReturnValue(pearlName);
+        cir.setReturnValue(Component.literal(displayName));
     }
 }

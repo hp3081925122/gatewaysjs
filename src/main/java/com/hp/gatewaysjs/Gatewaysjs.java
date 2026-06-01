@@ -1,6 +1,7 @@
 package com.hp.gatewaysjs;
 
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
+import com.hp.gatewaysjs.network.GatewaysJSNetwork;
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
@@ -33,6 +34,7 @@ public class Gatewaysjs {
 
     public Gatewaysjs() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        GatewaysJSNetwork.register();
 
         // 注册到Forge事件总线
         MinecraftForge.EVENT_BUS.register(this);

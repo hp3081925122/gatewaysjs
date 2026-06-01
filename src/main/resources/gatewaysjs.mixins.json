@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "gatewaysjs.refmap.json",
   "mixins": [
+    "GatePearlItemCreativeTabMixin",
     "GatePearlItemNameMixin",
     "GatewayEntityAccessor",
     "GatewayEntityPersistenceMixin"
