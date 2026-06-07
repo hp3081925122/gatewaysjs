@@ -175,6 +175,8 @@ dependencies {
     implementation fg.deobf("curse.maven:mutil-283644:6274231")
     //Apothic Attributes
     implementation fg.deobf("curse.maven:mutil-898963:5634071")
+    //Apotheosis本体
+    implementation fg.deobf("curse.maven:apotheosis-313970:6461960")
     implementation fg.deobf("curse.maven:kubejs-238086:5853326")
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
     implementation fg.deobf("curse.maven:rhino-416294:6186971")

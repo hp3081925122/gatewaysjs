@@ -1,7 +1,6 @@
 package com.hp.gatewaysjs.kubejs.wrapper;
 
 import dev.shadowsoffire.gateways.gate.WaveEntity;
-import dev.shadowsoffire.gateways.gate.WaveEntity.StandardWaveEntity;
 
 /**
  * WaveEntity的JavaScript包装类

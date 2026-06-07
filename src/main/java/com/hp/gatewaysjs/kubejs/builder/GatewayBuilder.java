@@ -1,5 +1,6 @@
 package com.hp.gatewaysjs.kubejs.builder;
 
+import com.hp.gatewaysjs.compat.ApotheosisGatewayCompat;
 import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
@@ -108,6 +109,7 @@ public class GatewayBuilder {
     private Gateway.Size size = Gateway.Size.SMALL;
     private TextColor color = TextColor.fromRgb(0xFFFFFF);
     private final List<WaveBuilder> waveBuilders = new ArrayList<>();
+    private final List<Consumer<WaveBuilder>> globalWaveModifiers = new ArrayList<>();
     private final List<Reward> rewards = new ArrayList<>();
     private final List<Failure> failures = new ArrayList<>();
     private final List<WaveModifier> globalModifiers = new ArrayList<>();
@@ -452,6 +454,9 @@ public class GatewayBuilder {
     public WaveBuilder addWave() {
         WaveBuilder builder = new WaveBuilder(this);
         waveBuilders.add(builder);
+        for (Consumer<WaveBuilder> modifier : globalWaveModifiers) {
+            modifier.accept(builder);
+        }
         return builder;
     }
 
@@ -479,6 +484,17 @@ public class GatewayBuilder {
     }
 
     /**
+     * 对所有波次应用统一配置
+     */
+    public GatewayBuilder modifyAllWaves(Consumer<WaveBuilder> consumer) {
+        globalWaveModifiers.add(consumer);
+        for (WaveBuilder builder : waveBuilders) {
+            consumer.accept(builder);
+        }
+        return this;
+    }
+
+    /**
      * 添加物品奖励（传送门完成时发放）
      */
     public GatewayBuilder addReward(String itemId, int count) {
@@ -487,6 +503,14 @@ public class GatewayBuilder {
         );
         stack.setCount(count);
         this.rewards.add(new Reward.StackReward(stack));
+        return this;
+    }
+
+    /**
+     * 添加Apotheosis词缀物品奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addApotheosisAffixReward(String rarityId) {
+        this.rewards.add(ApotheosisGatewayCompat.createAffixReward(rarityId));
         return this;
     }
 
@@ -858,6 +882,7 @@ public class GatewayBuilder {
     public static class WaveBuilder {
         private final GatewayBuilder parent;
         private final List<EntityConfig> entities = new ArrayList<>();
+        private final List<WaveEntity> customEntities = new ArrayList<>();
         private final List<WaveModifier> modifiers = new ArrayList<>();
         private final List<Reward> rewards = new ArrayList<>();
         private int maxWaveTime = 1200;  // 默认60秒
@@ -881,6 +906,22 @@ public class GatewayBuilder {
             EntityConfig entity = new EntityConfig(type, count);
             entities.add(entity);
             return new WaveEntityBuilder(this, entity);
+        }
+
+        /**
+         * 添加随机Apotheosis Boss到波次
+         */
+        public WaveBuilder addApotheosisBoss() {
+            customEntities.add(ApotheosisGatewayCompat.createBossWaveEntity());
+            return this;
+        }
+
+        /**
+         * 添加指定Apotheosis Boss到波次
+         */
+        public WaveBuilder addApotheosisBoss(String bossId) {
+            customEntities.add(ApotheosisGatewayCompat.createBossWaveEntity(bossId));
+            return this;
         }
 
         /**
@@ -957,6 +998,14 @@ public class GatewayBuilder {
         }
 
         /**
+         * 添加Apotheosis词缀物品奖励到波次
+         */
+        public WaveBuilder addApotheosisAffixReward(String rarityId) {
+            this.rewards.add(ApotheosisGatewayCompat.createAffixReward(rarityId));
+            return this;
+        }
+
+        /**
          * 完成波次构建，返回父 Builder
          */
         public GatewayBuilder buildWave() {
@@ -971,6 +1020,7 @@ public class GatewayBuilder {
             for (EntityConfig entity : entities) {
                 builtEntities.add(entity.build(parent));
             }
+            builtEntities.addAll(customEntities);
             return new Wave(builtEntities, builtModifiers, rewards, maxWaveTime, setupTime);
         }
 
