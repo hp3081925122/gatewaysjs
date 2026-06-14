@@ -388,6 +388,18 @@ public interface GatewayAPI {
         return GatewayBuilder.custom(id);
     }
 
+    static boolean registerJson(String id, String gatewayJson) {
+        ResourceLocation loc = new ResourceLocation(id);
+        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+        return DynamicGatewayManager.register(loc, gateway);
+    }
+
+    static boolean registerJson(String id, String gatewayJson, String displayName) {
+        ResourceLocation loc = new ResourceLocation(id);
+        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+        return DynamicGatewayManager.register(loc, gateway, displayName);
+    }
+
     /**
      * 在创造物品栏中隐藏指定传送门对应的珍珠
      */

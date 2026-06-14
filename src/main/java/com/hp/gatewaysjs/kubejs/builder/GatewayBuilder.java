@@ -5,6 +5,10 @@ import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import com.hp.gatewaysjs.util.GatewayRenderData;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
@@ -308,6 +312,11 @@ public class GatewayBuilder {
         return this;
     }
 
+    public GatewayBuilder addModifierJson(String modifierJson) {
+        globalModifiers.add(parseWaveModifier(modifierJson));
+        return this;
+    }
+
     /**
      * 设置所有波次实体的默认描述文本，实体单独设置时会覆盖这里
      */
@@ -498,11 +507,128 @@ public class GatewayBuilder {
      * 添加物品奖励（传送门完成时发放）
      */
     public GatewayBuilder addReward(String itemId, int count) {
-        ItemStack stack = new ItemStack(
-            net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new ResourceLocation(itemId))
-        );
-        stack.setCount(count);
-        this.rewards.add(new Reward.StackReward(stack));
+        this.rewards.add(new Reward.StackReward(createItemStack(itemId, count, null)));
+        return this;
+    }
+
+    public GatewayBuilder addReward(String itemId, int count, String nbtString) {
+        this.rewards.add(new Reward.StackReward(createItemStack(itemId, count, nbtString)));
+        return this;
+    }
+
+    public GatewayBuilder addStackReward(String itemId, int count) {
+        return addReward(itemId, count);
+    }
+
+    public GatewayBuilder addStackReward(String itemId, int count, String nbtString) {
+        return addReward(itemId, count, nbtString);
+    }
+
+    public GatewayBuilder addStackListReward(List<ItemStack> stacks) {
+        this.rewards.add(new Reward.StackListReward(List.copyOf(stacks)));
+        return this;
+    }
+
+    public GatewayBuilder addStackListReward(String stacksJson) {
+        this.rewards.add(createStackListReward(stacksJson));
+        return this;
+    }
+
+    /**
+     * 添加原始奖励JSON，支持Gateways数据包中的全部奖励类型
+     */
+    public GatewayBuilder addRewardJson(String rewardJson) {
+        this.rewards.add(parseReward(rewardJson));
+        return this;
+    }
+
+    /**
+     * 添加战利品表奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addLootTableReward(String lootTableId, int rolls) {
+        return addLootTableReward(lootTableId, rolls, null);
+    }
+
+    /**
+     * 添加战利品表奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addLootTableReward(String lootTableId, int rolls, String description) {
+        this.rewards.add(new Reward.LootTableReward(new ResourceLocation(lootTableId), rolls, description));
+        return this;
+    }
+
+    /**
+     * 添加实体掉落奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addEntityLootReward(String entityId, int rolls) {
+        return addEntityLootReward(entityId, null, rolls);
+    }
+
+    /**
+     * 添加带NBT的实体掉落奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addEntityLootReward(String entityId, String nbtString, int rolls) {
+        this.rewards.add(new Reward.EntityLootReward(resolveEntityType(entityId), parseNullableNbt(nbtString), rolls));
+        return this;
+    }
+
+    /**
+     * 添加经验奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addExperienceReward(int experience) {
+        return addExperienceReward(experience, 0);
+    }
+
+    /**
+     * 添加经验奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addExperienceReward(int experience, int orbSize) {
+        this.rewards.add(new Reward.XpReward(experience, orbSize));
+        return this;
+    }
+
+    /**
+     * addExperienceReward 的别名
+     */
+    public GatewayBuilder addXpReward(int experience) {
+        return addExperienceReward(experience);
+    }
+
+    /**
+     * addExperienceReward 的别名
+     */
+    public GatewayBuilder addXpReward(int experience, int orbSize) {
+        return addExperienceReward(experience, orbSize);
+    }
+
+    /**
+     * 添加命令奖励（传送门完成时执行）
+     */
+    public GatewayBuilder addCommandReward(String command, String description) {
+        this.rewards.add(new Reward.CommandReward(command, description));
+        return this;
+    }
+
+    /**
+     * 添加召唤实体奖励（传送门完成时生成）
+     */
+    public GatewayBuilder addSummonReward(String entityId, int count) {
+        return addSummonReward(entityId, null, count);
+    }
+
+    /**
+     * 添加带NBT的召唤实体奖励（传送门完成时生成）
+     */
+    public GatewayBuilder addSummonReward(String entityId, String nbtString, int count) {
+        this.rewards.add(new Reward.SummonReward(createStandardWaveEntity(entityId, nbtString, count)));
+        return this;
+    }
+
+    /**
+     * 添加概率奖励（传送门完成时发放）
+     */
+    public GatewayBuilder addChancedReward(String rewardJson, double chance) {
+        this.rewards.add(new Reward.ChancedReward(parseReward(rewardJson), (float) chance));
         return this;
     }
 
@@ -511,6 +637,71 @@ public class GatewayBuilder {
      */
     public GatewayBuilder addApotheosisAffixReward(String rarityId) {
         this.rewards.add(ApotheosisGatewayCompat.createAffixReward(rarityId));
+        return this;
+    }
+
+    /**
+     * 添加原始失败惩罚JSON，支持Gateways数据包中的全部失败惩罚类型
+     */
+    public GatewayBuilder addFailureJson(String failureJson) {
+        this.failures.add(parseFailure(failureJson));
+        return this;
+    }
+
+    /**
+     * 添加命令失败惩罚
+     */
+    public GatewayBuilder addCommandFailure(String command, String description) {
+        this.failures.add(new Failure.CommandFailure(command, description));
+        return this;
+    }
+
+    /**
+     * 添加召唤实体失败惩罚
+     */
+    public GatewayBuilder addSummonFailure(String entityId, int count) {
+        return addSummonFailure(entityId, null, count);
+    }
+
+    /**
+     * 添加带NBT的召唤实体失败惩罚
+     */
+    public GatewayBuilder addSummonFailure(String entityId, String nbtString, int count) {
+        this.failures.add(new Failure.SummonFailure(createStandardWaveEntity(entityId, nbtString, count)));
+        return this;
+    }
+
+    /**
+     * 添加爆炸失败惩罚
+     */
+    public GatewayBuilder addExplosionFailure(double strength, boolean fire, boolean blockDamage) {
+        this.failures.add(new Failure.ExplosionFailure((float) strength, fire, blockDamage));
+        return this;
+    }
+
+    /**
+     * 添加药水效果失败惩罚
+     */
+    public GatewayBuilder addMobEffectFailure(MobEffect effect, int duration) {
+        return addMobEffectFailure(effect, duration, 0);
+    }
+
+    /**
+     * 添加药水效果失败惩罚
+     */
+    public GatewayBuilder addMobEffectFailure(MobEffect effect, int duration, int amplifier) {
+        if (effect == null) {
+            throw new IllegalArgumentException("Effect cannot be null");
+        }
+        this.failures.add(new Failure.MobEffectFailure(effect, duration, amplifier));
+        return this;
+    }
+
+    /**
+     * 添加概率失败惩罚
+     */
+    public GatewayBuilder addChancedFailure(String failureJson, double chance) {
+        this.failures.add(new Failure.ChancedFailure(parseFailure(failureJson), (float) chance));
         return this;
     }
 
@@ -756,6 +947,29 @@ public class GatewayBuilder {
         return this;
     }
 
+    public GatewayBuilder bossEvent(String mode, boolean fog) {
+        this.bossSettings = new BossEventSettings(parseBossEventMode(mode), fog);
+        return this;
+    }
+
+    public GatewayBuilder bossEventMode(String mode) {
+        this.bossSettings = new BossEventSettings(parseBossEventMode(mode), bossSettings.fog());
+        return this;
+    }
+
+    public GatewayBuilder bossEventFog(boolean fog) {
+        this.bossSettings = new BossEventSettings(bossSettings.mode(), fog);
+        return this;
+    }
+
+    public GatewayBuilder bossEventAsBar() {
+        return bossEventMode("boss_bar");
+    }
+
+    public GatewayBuilder bossEventAsNamePlate() {
+        return bossEventMode("name_plate");
+    }
+
     // ==================== 注册与生成 ====================
 
     /**
@@ -909,6 +1123,14 @@ public class GatewayBuilder {
         }
 
         /**
+         * 添加原始实体JSON，支持Gateways数据包中的全部波次实体类型
+         */
+        public WaveBuilder addEntityJson(String entityJson) {
+            customEntities.add(parseWaveEntity(entityJson));
+            return this;
+        }
+
+        /**
          * 添加随机Apotheosis Boss到波次
          */
         public WaveBuilder addApotheosisBoss() {
@@ -969,6 +1191,11 @@ public class GatewayBuilder {
             return this;
         }
 
+        public WaveBuilder addModifierJson(String modifierJson) {
+            modifiers.add(parseWaveModifier(modifierJson));
+            return this;
+        }
+
         /**
          * 设置波次最大时间（tick）
          */
@@ -989,11 +1216,128 @@ public class GatewayBuilder {
          * 添加波次奖励
          */
         public WaveBuilder addReward(String itemId, int count) {
-            ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new ResourceLocation(itemId))
-            );
-            stack.setCount(count);
-            this.rewards.add(new Reward.StackReward(stack));
+            this.rewards.add(new Reward.StackReward(createItemStack(itemId, count, null)));
+            return this;
+        }
+
+        public WaveBuilder addReward(String itemId, int count, String nbtString) {
+            this.rewards.add(new Reward.StackReward(createItemStack(itemId, count, nbtString)));
+            return this;
+        }
+
+        public WaveBuilder addStackReward(String itemId, int count) {
+            return addReward(itemId, count);
+        }
+
+        public WaveBuilder addStackReward(String itemId, int count, String nbtString) {
+            return addReward(itemId, count, nbtString);
+        }
+
+        public WaveBuilder addStackListReward(List<ItemStack> stacks) {
+            this.rewards.add(new Reward.StackListReward(List.copyOf(stacks)));
+            return this;
+        }
+
+        public WaveBuilder addStackListReward(String stacksJson) {
+            this.rewards.add(createStackListReward(stacksJson));
+            return this;
+        }
+
+        /**
+         * 添加原始奖励JSON，支持Gateways数据包中的全部奖励类型
+         */
+        public WaveBuilder addRewardJson(String rewardJson) {
+            this.rewards.add(parseReward(rewardJson));
+            return this;
+        }
+
+        /**
+         * 添加战利品表奖励到波次
+         */
+        public WaveBuilder addLootTableReward(String lootTableId, int rolls) {
+            return addLootTableReward(lootTableId, rolls, null);
+        }
+
+        /**
+         * 添加战利品表奖励到波次
+         */
+        public WaveBuilder addLootTableReward(String lootTableId, int rolls, String description) {
+            this.rewards.add(new Reward.LootTableReward(new ResourceLocation(lootTableId), rolls, description));
+            return this;
+        }
+
+        /**
+         * 添加实体掉落奖励到波次
+         */
+        public WaveBuilder addEntityLootReward(String entityId, int rolls) {
+            return addEntityLootReward(entityId, null, rolls);
+        }
+
+        /**
+         * 添加带NBT的实体掉落奖励到波次
+         */
+        public WaveBuilder addEntityLootReward(String entityId, String nbtString, int rolls) {
+            this.rewards.add(new Reward.EntityLootReward(resolveEntityType(entityId), parseNullableNbt(nbtString), rolls));
+            return this;
+        }
+
+        /**
+         * 添加经验奖励到波次
+         */
+        public WaveBuilder addExperienceReward(int experience) {
+            return addExperienceReward(experience, 0);
+        }
+
+        /**
+         * 添加经验奖励到波次
+         */
+        public WaveBuilder addExperienceReward(int experience, int orbSize) {
+            this.rewards.add(new Reward.XpReward(experience, orbSize));
+            return this;
+        }
+
+        /**
+         * addExperienceReward 的别名
+         */
+        public WaveBuilder addXpReward(int experience) {
+            return addExperienceReward(experience);
+        }
+
+        /**
+         * addExperienceReward 的别名
+         */
+        public WaveBuilder addXpReward(int experience, int orbSize) {
+            return addExperienceReward(experience, orbSize);
+        }
+
+        /**
+         * 添加命令奖励到波次
+         */
+        public WaveBuilder addCommandReward(String command, String description) {
+            this.rewards.add(new Reward.CommandReward(command, description));
+            return this;
+        }
+
+        /**
+         * 添加召唤实体奖励到波次
+         */
+        public WaveBuilder addSummonReward(String entityId, int count) {
+            return addSummonReward(entityId, null, count);
+        }
+
+        /**
+         * 添加带NBT的召唤实体奖励到波次
+         */
+        public WaveBuilder addSummonReward(String entityId, String nbtString, int count) {
+            this.rewards.add(new Reward.SummonReward(createStandardWaveEntity(entityId, nbtString, count)));
+            return this;
+        }
+
+        /**
+         * 添加概率奖励到波次
+         */
+        public WaveBuilder addChancedReward(String rewardJson, double chance) {
+            this.rewards.add(new Reward.ChancedReward(parseReward(rewardJson), (float) chance));
             return this;
         }
 
@@ -1138,6 +1482,11 @@ public class GatewayBuilder {
                 return this;
             }
 
+            public EntityModifierBuilder addModifierJson(String modifierJson) {
+                entity.modifiers.add(parseWaveModifier(modifierJson));
+                return this;
+            }
+
             /**
              * 设置实体描述文本
              */
@@ -1228,6 +1577,105 @@ public class GatewayBuilder {
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid entity NBT: " + nbtString, e);
         }
+    }
+
+    @Nullable
+    private static CompoundTag parseNullableNbt(@Nullable String nbtString) {
+        return nbtString == null || nbtString.isBlank() ? null : parseNbt(nbtString);
+    }
+
+    private static ItemStack createItemStack(String itemId, int count, @Nullable String nbtString) {
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(new ResourceLocation(itemId)));
+        stack.setCount(count);
+        CompoundTag tag = parseNullableNbt(nbtString);
+        if (tag != null) {
+            stack.setTag(tag);
+        }
+        return stack;
+    }
+
+    private static Reward createStackListReward(String stacksJson) {
+        JsonElement json = JsonParser.parseString(stacksJson);
+        JsonObject rewardJson;
+        if (json.isJsonArray()) {
+            rewardJson = new JsonObject();
+            rewardJson.addProperty("type", "gateways:stack_list");
+            rewardJson.add("stacks", json);
+        } else if (json.isJsonObject()) {
+            rewardJson = json.getAsJsonObject();
+            if (!rewardJson.has("type")) {
+                rewardJson.addProperty("type", "gateways:stack_list");
+            }
+        } else {
+            throw new IllegalArgumentException("无法解码Gateways物品列表奖励JSON。");
+        }
+        return parseReward(rewardJson);
+    }
+
+    private static BossEventSettings.Mode parseBossEventMode(String mode) {
+        return switch (mode.toLowerCase()) {
+            case "name_plate", "nameplate", "name" -> BossEventSettings.Mode.NAME_PLATE;
+            case "boss_bar", "bar", "bossbar" -> BossEventSettings.Mode.BOSS_BAR;
+            default -> throw new IllegalArgumentException("Unknown boss event mode: " + mode);
+        };
+    }
+
+    private static EntityType<?> resolveEntityType(String entityId) {
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(new ResourceLocation(entityId));
+        if (type == null) {
+            throw new IllegalArgumentException("Unknown entity type: " + entityId);
+        }
+        return type;
+    }
+
+    private static WaveEntity createStandardWaveEntity(String entityId, @Nullable String nbtString, int count) {
+        return new WaveEntity.StandardWaveEntity(
+            resolveEntityType(entityId),
+            Optional.empty(),
+            Optional.ofNullable(parseNullableNbt(nbtString)),
+            List.of(),
+            true,
+            count
+        );
+    }
+
+    private static Reward parseReward(String rewardJson) {
+        return parseReward(JsonParser.parseString(rewardJson));
+    }
+
+    private static Reward parseReward(JsonElement json) {
+        return Reward.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Gateways奖励JSON。"));
+    }
+
+    private static Failure parseFailure(String failureJson) {
+        JsonElement json = JsonParser.parseString(failureJson);
+        return Failure.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Gateways失败惩罚JSON。"));
+    }
+
+    private static WaveEntity parseWaveEntity(String entityJson) {
+        JsonElement json = JsonParser.parseString(entityJson);
+        return WaveEntity.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Gateways波次实体JSON。"));
+    }
+
+    private static WaveModifier parseWaveModifier(String modifierJson) {
+        JsonElement json = JsonParser.parseString(modifierJson);
+        return WaveModifier.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Gateways波次修饰器JSON。"));
     }
 
     @Nullable
