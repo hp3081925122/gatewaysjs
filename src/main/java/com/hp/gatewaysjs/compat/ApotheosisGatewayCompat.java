@@ -5,7 +5,7 @@ import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.gate.Reward;
 import dev.shadowsoffire.gateways.gate.WaveEntity;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
 
 public final class ApotheosisGatewayCompat {
 
@@ -34,14 +34,14 @@ public final class ApotheosisGatewayCompat {
     public static WaveEntity createBossWaveEntity(String bossId) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:boss");
-        json.addProperty("boss", new ResourceLocation(bossId).toString());
+        json.addProperty("boss", ResourceLocation.parse(bossId).toString());
         return decodeWaveEntity(json);
     }
 
     public static Reward createAffixReward(String rarityId) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:affix");
-        json.addProperty("rarity", new ResourceLocation(rarityId).toString());
+        json.addProperty("rarity", ResourceLocation.parse(rarityId).toString());
         return decodeReward(json);
     }
 

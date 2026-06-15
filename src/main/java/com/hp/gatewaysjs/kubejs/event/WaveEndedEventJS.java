@@ -1,7 +1,7 @@
 package com.hp.gatewaysjs.kubejs.event;
 
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayEntityWrapper;
-import dev.latvian.mods.kubejs.event.EventJS;
+import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import dev.shadowsoffire.gateways.gate.Gateway;
@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
  * 波次结束事件JS包装类
  */
 @SuppressWarnings("removal")
-public class WaveEndedEventJS extends EventJS {
+public class WaveEndedEventJS implements KubeEvent {
 
     private final GateEvent.WaveEnd event;
     private GatewayEntityWrapper entityWrapper;
@@ -59,7 +59,7 @@ public class WaveEndedEventJS extends EventJS {
         GatewayEntity entity = event.getEntity();
         if (entity.level() instanceof ServerLevel serverLevel) {
             ItemStack stack = new ItemStack(
-                BuiltInRegistries.ITEM.get(new ResourceLocation(itemId))
+                BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
             );
             stack.setCount(count);
             // 直接在世界中生成物品实体

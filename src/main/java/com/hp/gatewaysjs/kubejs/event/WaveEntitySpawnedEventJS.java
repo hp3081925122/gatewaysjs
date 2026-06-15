@@ -1,7 +1,7 @@
 package com.hp.gatewaysjs.kubejs.event;
 
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayEntityWrapper;
-import dev.latvian.mods.kubejs.event.EventJS;
+import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import dev.shadowsoffire.gateways.gate.Gateway;
@@ -12,7 +12,7 @@ import net.minecraft.world.entity.LivingEntity;
 /**
  * 波次实体生成事件JS包装类
  */
-public class WaveEntitySpawnedEventJS extends EventJS {
+public class WaveEntitySpawnedEventJS implements KubeEvent {
 
     private final GateEvent.WaveEntitySpawned event;
     private GatewayEntityWrapper entityWrapper;

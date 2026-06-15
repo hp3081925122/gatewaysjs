@@ -17,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -112,7 +113,7 @@ public interface GatewayAPI {
      */
     static boolean exists(String gatewayId) {
         try {
-            ResourceLocation loc = new ResourceLocation(gatewayId);
+            ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             return holder.isBound();
         } catch (Exception e) {
@@ -128,7 +129,7 @@ public interface GatewayAPI {
      */
     static GatewayWrapper getGateway(String gatewayId) {
         try {
-            ResourceLocation loc = new ResourceLocation(gatewayId);
+            ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             if (holder.isBound()) {
                 return new GatewayWrapper(holder.get());
@@ -146,7 +147,7 @@ public interface GatewayAPI {
      */
     static String getGatewayType(String gatewayId) {
         try {
-            ResourceLocation loc = new ResourceLocation(gatewayId);
+            ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             if (holder.isBound()) {
                 Gateway gate = holder.get();
@@ -178,7 +179,7 @@ public interface GatewayAPI {
         }
 
         try {
-            ResourceLocation loc = new ResourceLocation(gatewayId);
+            ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
 
             if (!holder.isBound()) {
@@ -192,7 +193,7 @@ public interface GatewayAPI {
             if (summoner == null) {
                 summoner = serverLevel.getNearestPlayer(x, y, z, 50, false);
                 if (summoner == null) {
-                    summoner = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(serverLevel);
+                    summoner = FakePlayerFactory.getMinecraft(serverLevel);
                 }
             }
 
@@ -248,7 +249,7 @@ public interface GatewayAPI {
      */
     static String createPearlItem(String gatewayId) {
         try {
-            ResourceLocation loc = new ResourceLocation(gatewayId);
+            ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
 
             if (!holder.isBound()) {
@@ -389,13 +390,13 @@ public interface GatewayAPI {
     }
 
     static boolean registerJson(String id, String gatewayJson) {
-        ResourceLocation loc = new ResourceLocation(id);
+        ResourceLocation loc = ResourceLocation.parse(id);
         Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
         return DynamicGatewayManager.register(loc, gateway);
     }
 
     static boolean registerJson(String id, String gatewayJson, String displayName) {
-        ResourceLocation loc = new ResourceLocation(id);
+        ResourceLocation loc = ResourceLocation.parse(id);
         Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
         return DynamicGatewayManager.register(loc, gateway, displayName);
     }
@@ -404,14 +405,14 @@ public interface GatewayAPI {
      * 在创造物品栏中隐藏指定传送门对应的珍珠
      */
     static void hidePearlInCreativeTab(String gatewayId) {
-        DynamicGatewayManager.setPearlHiddenInCreativeTab(new ResourceLocation(gatewayId), true);
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(ResourceLocation.parse(gatewayId), true);
     }
 
     /**
      * 恢复指定传送门珍珠在创造物品栏中的显示
      */
     static void showPearlInCreativeTab(String gatewayId) {
-        DynamicGatewayManager.setPearlHiddenInCreativeTab(new ResourceLocation(gatewayId), false);
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(ResourceLocation.parse(gatewayId), false);
     }
 
     // ==================== 自定义纹理设置 ====================
@@ -428,8 +429,8 @@ public interface GatewayAPI {
      * @param texturePath 纹理资源路径（如 "mymod:textures/entity/my_gate.png"）
      */
     static void setEntityTexture(String gatewayId, String texturePath) {
-        ResourceLocation id = new ResourceLocation(gatewayId);
-        ResourceLocation tex = new ResourceLocation(texturePath);
+        ResourceLocation id = ResourceLocation.parse(gatewayId);
+        ResourceLocation tex = ResourceLocation.parse(texturePath);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -466,8 +467,8 @@ public interface GatewayAPI {
      * @param texturePath Boss条纹理资源路径（建议使用 "minecraft:textures/gui/bars.png"）
      */
     static void setBossBarTexture(String gatewayId, String texturePath) {
-        ResourceLocation id = new ResourceLocation(gatewayId);
-        BossBarRenderConfig config = new BossBarRenderConfig(new ResourceLocation(texturePath));
+        ResourceLocation id = ResourceLocation.parse(gatewayId);
+        BossBarRenderConfig config = new BossBarRenderConfig(ResourceLocation.parse(texturePath));
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -524,9 +525,9 @@ public interface GatewayAPI {
     static void setBossBarTexture(String gatewayId, String texturePath,
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
-        ResourceLocation id = new ResourceLocation(gatewayId);
+        ResourceLocation id = ResourceLocation.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
+            ResourceLocation.parse(texturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
@@ -565,10 +566,10 @@ public interface GatewayAPI {
      * @param progressTexturePath 进度纹理（血条填充）
      */
     static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath) {
-        ResourceLocation id = new ResourceLocation(gatewayId);
+        ResourceLocation id = ResourceLocation.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
-            new ResourceLocation(progressTexturePath));
+            ResourceLocation.parse(texturePath),
+            ResourceLocation.parse(progressTexturePath));
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -659,10 +660,10 @@ public interface GatewayAPI {
     static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath,
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
-        ResourceLocation id = new ResourceLocation(gatewayId);
+        ResourceLocation id = ResourceLocation.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
-            new ResourceLocation(progressTexturePath),
+            ResourceLocation.parse(texturePath),
+            ResourceLocation.parse(progressTexturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);

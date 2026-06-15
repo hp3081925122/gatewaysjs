@@ -10,8 +10,6 @@ import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import dev.shadowsoffire.gateways.client.GatewayRenderer;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 /**
  * 混入 {@link GatewayRenderer}，为每个网关实体提供自定义纹理支持。
@@ -20,7 +18,6 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  * 如果该网关有自定义纹理则返回自定义纹理，否则使用默认纹理。
  * </p>
  */
-@OnlyIn(Dist.CLIENT)
 @Mixin(GatewayRenderer.class)
 public class GatewayRendererMixin {
 

@@ -3,13 +3,9 @@ package com.hp.gatewaysjs;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.network.GatewaysJSNetwork;
 import com.mojang.logging.LogUtils;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 
 /**
@@ -32,16 +28,15 @@ public class Gatewaysjs {
     public static final String MODID = "gatewaysjs";
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public Gatewaysjs() {
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
-        GatewaysJSNetwork.register();
+    public Gatewaysjs(IEventBus modEventBus) {
+        GatewaysJSNetwork.register(modEventBus);
 
-        // 注册到Forge事件总线
-        MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
-        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
-        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
-        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);
+        // 注册到NeoForge事件总线
+        NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);
         DynamicGatewayManager.bootstrap();
 
         LOGGER.info("GatewaysJS 加载完成 - Gateway与KubeJS联动附属");

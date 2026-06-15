@@ -2,7 +2,7 @@ package com.hp.gatewaysjs.kubejs.wrapper;
 
 import dev.shadowsoffire.gateways.gate.Wave;
 import dev.shadowsoffire.gateways.gate.WaveEntity;
-import dev.shadowsoffire.gateways.gate.WaveEntity.StandardWaveEntity;
+import dev.shadowsoffire.gateways.gate.StandardWaveEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +68,6 @@ public class WaveWrapper {
         List<String> types = new ArrayList<>();
         for (WaveEntity we : wave.entities()) {
             if (we instanceof StandardWaveEntity swe) {
-                // StandardWaveEntity 的 type 字段是 protected，需要通过描述获取
                 types.add(swe.getDescription().getString());
             } else {
                 types.add("unknown");

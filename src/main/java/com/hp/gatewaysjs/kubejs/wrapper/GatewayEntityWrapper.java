@@ -4,6 +4,7 @@ import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import dev.shadowsoffire.gateways.gate.Wave;
+import dev.shadowsoffire.gateways.payloads.ParticlePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -219,7 +220,7 @@ public class GatewayEntityWrapper {
     public void spawnItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new ResourceLocation(itemId))
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
             );
             stack.setCount(count);
             entity.spawnItem(stack);
@@ -234,7 +235,7 @@ public class GatewayEntityWrapper {
     public void spawnCompletionItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(new ResourceLocation(itemId))
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
             );
             stack.setCount(count);
             entity.spawnCompletionItem(stack);
@@ -247,7 +248,7 @@ public class GatewayEntityWrapper {
      */
     public void playSound(String soundId) {
         if (entity.level() instanceof ServerLevel) {
-            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(new ResourceLocation(soundId));
+            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(soundId));
             entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.0F);
         }
     }
@@ -257,7 +258,7 @@ public class GatewayEntityWrapper {
      */
     public void spawnParticles() {
         entity.spawnParticle(entity.getX(), entity.getY() + entity.getBbHeight() / 2, entity.getZ(),
-            dev.shadowsoffire.gateways.net.ParticleMessage.Type.SPAWNED);
+            ParticlePayload.EffectType.SPAWNED);
     }
 
     /**

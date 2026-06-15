@@ -13,11 +13,11 @@ import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
 import dev.shadowsoffire.placebo.json.ChancedEffectInstance;
-import dev.shadowsoffire.placebo.json.GearSetRegistry;
 import dev.shadowsoffire.placebo.json.RandomAttributeModifier;
 import dev.shadowsoffire.gateways.gate.SpawnAlgorithms.SpawnAlgorithm;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import dev.shadowsoffire.placebo.util.StepFunction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.core.BlockPos;
@@ -31,7 +31,9 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -141,7 +143,7 @@ public class GatewayBuilder {
      * @param id 传送门ID（必须已在数据包中注册）
      */
     public static GatewayBuilder create(String id) {
-        return new GatewayBuilder(new ResourceLocation(id), false);
+        return new GatewayBuilder(ResourceLocation.parse(id), false);
     }
 
     /**
@@ -149,7 +151,7 @@ public class GatewayBuilder {
      * @param id 自定义传送门的唯一ID（如 "mymod:custom_gate"）
      */
     public static GatewayBuilder custom(String id) {
-        return new GatewayBuilder(new ResourceLocation(id), true);
+        return new GatewayBuilder(ResourceLocation.parse(id), true);
     }
 
     // ==================== 通用方法 ====================
@@ -365,7 +367,7 @@ public class GatewayBuilder {
      * @param texturePath 纹理的资源路径
      */
     public GatewayBuilder entityTexture(String texturePath) {
-        this.entityTexture = new ResourceLocation(texturePath);
+        this.entityTexture = ResourceLocation.parse(texturePath);
         return this;
     }
 
@@ -378,7 +380,7 @@ public class GatewayBuilder {
      * @param texturePath Boss条纹理的资源路径
      */
     public GatewayBuilder bossBarTexture(String texturePath) {
-        this.bossBarConfig = new BossBarRenderConfig(new ResourceLocation(texturePath));
+        this.bossBarConfig = new BossBarRenderConfig(ResourceLocation.parse(texturePath));
         return this;
     }
 
@@ -404,7 +406,7 @@ public class GatewayBuilder {
     public GatewayBuilder bossBar(String texturePath, double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
         this.bossBarConfig = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
+            ResourceLocation.parse(texturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         return this;
@@ -420,8 +422,8 @@ public class GatewayBuilder {
      */
     public GatewayBuilder bossBar(String texturePath, String progressTexturePath) {
         this.bossBarConfig = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
-            new ResourceLocation(progressTexturePath));
+            ResourceLocation.parse(texturePath),
+            ResourceLocation.parse(progressTexturePath));
         return this;
     }
 
@@ -450,8 +452,8 @@ public class GatewayBuilder {
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
         this.bossBarConfig = new BossBarRenderConfig(
-            new ResourceLocation(texturePath),
-            new ResourceLocation(progressTexturePath),
+            ResourceLocation.parse(texturePath),
+            ResourceLocation.parse(progressTexturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         return this;
@@ -553,7 +555,7 @@ public class GatewayBuilder {
      * 添加战利品表奖励（传送门完成时发放）
      */
     public GatewayBuilder addLootTableReward(String lootTableId, int rolls, String description) {
-        this.rewards.add(new Reward.LootTableReward(new ResourceLocation(lootTableId), rolls, description));
+        this.rewards.add(new Reward.LootTableReward(ResourceLocation.parse(lootTableId), rolls, description));
         return this;
     }
 
@@ -583,7 +585,7 @@ public class GatewayBuilder {
      * 添加经验奖励（传送门完成时发放）
      */
     public GatewayBuilder addExperienceReward(int experience, int orbSize) {
-        this.rewards.add(new Reward.XpReward(experience, orbSize));
+        this.rewards.add(new Reward.ExperienceReward(experience, orbSize));
         return this;
     }
 
@@ -693,7 +695,7 @@ public class GatewayBuilder {
         if (effect == null) {
             throw new IllegalArgumentException("Effect cannot be null");
         }
-        this.failures.add(new Failure.MobEffectFailure(effect, duration, amplifier));
+        this.failures.add(new Failure.MobEffectFailure(BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect), duration, amplifier));
         return this;
     }
 
@@ -735,6 +737,17 @@ public class GatewayBuilder {
                                 boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
                                 boolean failOnOutOfBounds, double spacing, double followRangeBoost,
                                 double defaultDropChance) {
+        this.rules = createRules(spawnRange, leashRange, allowDiscarding, allowDimChange, playerDamageOnly, removeMobsOnFailure, failOnOutOfBounds, spacing, followRangeBoost, defaultDropChance);
+        return this;
+    }
+
+    /**
+     * 设置完整传送门规则
+     */
+    public GatewayBuilder rules(double spawnRange, double leashRange, boolean allowDiscarding,
+                                boolean allowDimChange, boolean playerDamageOnly, boolean removeMobsOnFailure,
+                                boolean failOnOutOfBounds, double spacing, double followRangeBoost,
+                                double defaultDropChance, boolean requiresNearbyPlayer, int lives) {
         this.rules = new GateRules(
             spawnRange,
             leashRange,
@@ -745,7 +758,9 @@ public class GatewayBuilder {
             failOnOutOfBounds,
             spacing,
             followRangeBoost,
-            (float) defaultDropChance
+            (float) defaultDropChance,
+            requiresNearbyPlayer,
+            lives
         );
         return this;
     }
@@ -754,7 +769,7 @@ public class GatewayBuilder {
      * 设置怪物生成范围
      */
     public GatewayBuilder spawnRange(double spawnRange) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             spawnRange,
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -773,7 +788,7 @@ public class GatewayBuilder {
      * 设置怪物牵引范围
      */
     public GatewayBuilder leashRange(double leashRange) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             leashRange,
             rules.allowDiscarding(),
@@ -792,7 +807,7 @@ public class GatewayBuilder {
      * 设置是否允许丢弃的实体计入击杀
      */
     public GatewayBuilder allowDiscarding(boolean allowDiscarding) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             allowDiscarding,
@@ -811,7 +826,7 @@ public class GatewayBuilder {
      * 设置是否允许跨维度实体计入击杀
      */
     public GatewayBuilder allowDimChange(boolean allowDimChange) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -830,7 +845,7 @@ public class GatewayBuilder {
      * 设置波次实体是否只能被玩家伤害
      */
     public GatewayBuilder playerDamageOnly(boolean playerDamageOnly) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -849,7 +864,7 @@ public class GatewayBuilder {
      * 设置传送门失败时是否移除怪物
      */
     public GatewayBuilder removeMobsOnFailure(boolean removeMobsOnFailure) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -875,7 +890,7 @@ public class GatewayBuilder {
      * 设置怪物超出牵引范围时是否让传送门失败
      */
     public GatewayBuilder failOnOutOfBounds(boolean failOnOutOfBounds) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -894,7 +909,7 @@ public class GatewayBuilder {
      * 设置传送门之间的最小间距
      */
     public GatewayBuilder spacing(double spacing) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -913,7 +928,7 @@ public class GatewayBuilder {
      * 设置怪物跟随范围加成
      */
     public GatewayBuilder followRangeBoost(double followRangeBoost) {
-        this.rules = new GateRules(
+        this.rules = createRules(
             rules.spawnRange(),
             rules.leashRange(),
             rules.allowDiscarding(),
@@ -932,6 +947,25 @@ public class GatewayBuilder {
      * 设置默认装备掉落概率
      */
     public GatewayBuilder defaultDropChance(double defaultDropChance) {
+        this.rules = createRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            defaultDropChance
+        );
+        return this;
+    }
+
+    /**
+     * 设置是否需要附近玩家维持传送门
+     */
+    public GatewayBuilder requiresNearbyPlayer(boolean requiresNearbyPlayer) {
         this.rules = new GateRules(
             rules.spawnRange(),
             rules.leashRange(),
@@ -942,7 +976,30 @@ public class GatewayBuilder {
             rules.failOnOutOfBounds(),
             rules.spacing(),
             rules.followRangeBoost(),
-            (float) defaultDropChance
+            rules.defaultDropChance(),
+            requiresNearbyPlayer,
+            rules.lives()
+        );
+        return this;
+    }
+
+    /**
+     * 设置传送门生命次数，-1 表示不限制
+     */
+    public GatewayBuilder lives(int lives) {
+        this.rules = new GateRules(
+            rules.spawnRange(),
+            rules.leashRange(),
+            rules.allowDiscarding(),
+            rules.allowDimChange(),
+            rules.playerDamageOnly(),
+            rules.removeOnFailure(),
+            rules.failOnOutOfBounds(),
+            rules.spacing(),
+            rules.followRangeBoost(),
+            rules.defaultDropChance(),
+            rules.requiresNearbyPlayer(),
+            lives
         );
         return this;
     }
@@ -968,6 +1025,26 @@ public class GatewayBuilder {
 
     public GatewayBuilder bossEventAsNamePlate() {
         return bossEventMode("name_plate");
+    }
+
+    private GateRules createRules(double spawnRange, double leashRange, boolean allowDiscarding,
+                                  boolean allowDimChange, boolean playerDamageOnly, boolean removeOnFailure,
+                                  boolean failOnOutOfBounds, double spacing, double followRangeBoost,
+                                  double defaultDropChance) {
+        return new GateRules(
+            spawnRange,
+            leashRange,
+            allowDiscarding,
+            allowDimChange,
+            playerDamageOnly,
+            removeOnFailure,
+            failOnOutOfBounds,
+            spacing,
+            followRangeBoost,
+            (float) defaultDropChance,
+            rules.requiresNearbyPlayer(),
+            rules.lives()
+        );
     }
 
     // ==================== 注册与生成 ====================
@@ -1045,7 +1122,7 @@ public class GatewayBuilder {
             if (player == null) {
                 player = serverLevel.getNearestPlayer(x, y, z, 50, false);
                 if (player == null) {
-                    player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(serverLevel);
+                    player = FakePlayerFactory.getMinecraft(serverLevel);
                 }
             }
 
@@ -1112,7 +1189,7 @@ public class GatewayBuilder {
          * @param count 数量
          */
         public WaveEntityBuilder addEntity(String entityId, int count) {
-            EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(new ResourceLocation(entityId));
+            EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(entityId));
             if (type == null) {
                 throw new IllegalArgumentException("Unknown entity type: " + entityId);
             }
@@ -1262,7 +1339,7 @@ public class GatewayBuilder {
          * 添加战利品表奖励到波次
          */
         public WaveBuilder addLootTableReward(String lootTableId, int rolls, String description) {
-            this.rewards.add(new Reward.LootTableReward(new ResourceLocation(lootTableId), rolls, description));
+            this.rewards.add(new Reward.LootTableReward(ResourceLocation.parse(lootTableId), rolls, description));
             return this;
         }
 
@@ -1292,7 +1369,7 @@ public class GatewayBuilder {
          * 添加经验奖励到波次
          */
         public WaveBuilder addExperienceReward(int experience, int orbSize) {
-            this.rewards.add(new Reward.XpReward(experience, orbSize));
+            this.rewards.add(new Reward.ExperienceReward(experience, orbSize));
             return this;
         }
 
@@ -1387,7 +1464,7 @@ public class GatewayBuilder {
                 String builtDescription = description != null ? description : gateway.globalDescription;
                 boolean builtFinalizeSpawn = finalizeSpawn != null ? finalizeSpawn : gateway.globalFinalizeSpawn != null ? gateway.globalFinalizeSpawn : true;
 
-                return new WaveEntity.StandardWaveEntity(
+                return new StandardWaveEntity(
                     type,
                     Optional.ofNullable(builtDescription),
                     Optional.ofNullable(builtNbt),
@@ -1526,13 +1603,13 @@ public class GatewayBuilder {
 
             private static AttributeModifier.Operation parseAttributeOperation(AttributeOperation operation) {
                 if (operation == null) {
-                    return AttributeModifier.Operation.ADDITION;
+                    return AttributeModifier.Operation.ADD_VALUE;
                 }
 
                 return switch (operation) {
-                    case addition -> AttributeModifier.Operation.ADDITION;
-                    case multiply_base -> AttributeModifier.Operation.MULTIPLY_BASE;
-                    case multiply_total -> AttributeModifier.Operation.MULTIPLY_TOTAL;
+                    case addition -> AttributeModifier.Operation.ADD_VALUE;
+                    case multiply_base -> AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+                    case multiply_total -> AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
                 };
             }
 
@@ -1543,7 +1620,7 @@ public class GatewayBuilder {
 
                 AttributeModifier.Operation op = parseAttributeOperation(operation);
                 return new WaveModifier.AttributeModifier(
-                    new RandomAttributeModifier(attribute, op, StepFunction.constant(value.floatValue()))
+                    new RandomAttributeModifier(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(attribute), op, StepFunction.constant(value.floatValue()))
                 );
             }
 
@@ -1555,7 +1632,7 @@ public class GatewayBuilder {
                 return new WaveModifier.EffectModifier(
                     new ChancedEffectInstance(
                         chance.floatValue(),
-                        effect,
+                        BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect),
                         StepFunction.constant(amplifier.floatValue()),
                         ambient,
                         visible
@@ -1564,9 +1641,7 @@ public class GatewayBuilder {
             }
 
             public static WaveModifier.GearSetModifier createGearSetModifier(String gearSetId) {
-                return new WaveModifier.GearSetModifier(
-                    GearSetRegistry.INSTANCE.holder(new ResourceLocation(gearSetId))
-                );
+                return WaveModifier.GearSetModifier.create(ResourceLocation.parse(gearSetId));
             }
         }
     }
@@ -1585,11 +1660,11 @@ public class GatewayBuilder {
     }
 
     private static ItemStack createItemStack(String itemId, int count, @Nullable String nbtString) {
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(new ResourceLocation(itemId)));
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)));
         stack.setCount(count);
         CompoundTag tag = parseNullableNbt(nbtString);
         if (tag != null) {
-            stack.setTag(tag);
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         }
         return stack;
     }
@@ -1621,7 +1696,7 @@ public class GatewayBuilder {
     }
 
     private static EntityType<?> resolveEntityType(String entityId) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(new ResourceLocation(entityId));
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(entityId));
         if (type == null) {
             throw new IllegalArgumentException("Unknown entity type: " + entityId);
         }
@@ -1629,7 +1704,7 @@ public class GatewayBuilder {
     }
 
     private static WaveEntity createStandardWaveEntity(String entityId, @Nullable String nbtString, int count) {
-        return new WaveEntity.StandardWaveEntity(
+        return new StandardWaveEntity(
             resolveEntityType(entityId),
             Optional.empty(),
             Optional.ofNullable(parseNullableNbt(nbtString)),

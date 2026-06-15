@@ -13,20 +13,20 @@ import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
 /**
- * Forge事件处理器
- * 监听Gateway模组的Forge事件，转换为KubeJS事件
+ * NeoForge事件处理器
+ * 监听Gateway模组的NeoForge事件，转换为KubeJS事件
  */
 public class GatewayEventHandler {
 
     /**
-     * 注册事件监听器到Forge事件总线
+     * 注册事件监听器到NeoForge事件总线
      */
     public static void register() {
-        MinecraftForge.EVENT_BUS.register(GatewayEventHandler.class);
+        NeoForge.EVENT_BUS.register(GatewayEventHandler.class);
     }
 
     /**

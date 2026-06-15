@@ -1,7 +1,7 @@
 package com.hp.gatewaysjs.kubejs.event;
 
 import com.hp.gatewaysjs.kubejs.wrapper.GatewayEntityWrapper;
-import dev.latvian.mods.kubejs.event.EventJS;
+import dev.latvian.mods.kubejs.event.KubeEvent;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import dev.shadowsoffire.gateways.gate.Gateway;
@@ -26,7 +26,7 @@ import net.minecraft.resources.ResourceLocation;
  * });
  * </pre>
  */
-public class GateOpenedEventJS extends EventJS {
+public class GateOpenedEventJS implements KubeEvent {
 
     private final GateEvent.Opened event;
     private GatewayEntityWrapper entityWrapper;

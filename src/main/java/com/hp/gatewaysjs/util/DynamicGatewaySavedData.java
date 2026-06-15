@@ -3,6 +3,7 @@ package com.hp.gatewaysjs.util;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -12,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Stores runtime-created gateway definitions in the world save.
+ * 将运行时创建的网关定义保存到世界存档。
  */
 public class DynamicGatewaySavedData extends SavedData {
 
@@ -22,10 +23,10 @@ public class DynamicGatewaySavedData extends SavedData {
 
     public static DynamicGatewaySavedData get(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
-        return overworld.getDataStorage().computeIfAbsent(DynamicGatewaySavedData::load, DynamicGatewaySavedData::new, DATA_NAME);
+        return overworld.getDataStorage().computeIfAbsent(new SavedData.Factory<>(DynamicGatewaySavedData::new, DynamicGatewaySavedData::load), DATA_NAME);
     }
 
-    public static DynamicGatewaySavedData load(CompoundTag tag) {
+    public static DynamicGatewaySavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         DynamicGatewaySavedData data = new DynamicGatewaySavedData();
         ListTag entries = tag.getList("gateways", Tag.TAG_COMPOUND);
 
@@ -46,9 +47,9 @@ public class DynamicGatewaySavedData extends SavedData {
         return data;
     }
 
-    // Saves every dynamic gateway definition into the world data file.
+    // 将所有动态网关定义写入世界数据文件。
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag entries = new ListTag();
 
         for (Map.Entry<ResourceLocation, GatewayData> entry : this.gateways.entrySet()) {
@@ -74,13 +75,13 @@ public class DynamicGatewaySavedData extends SavedData {
         return tag;
     }
 
-    // Updates a saved dynamic gateway definition.
+    // 更新已保存的动态网关定义。
     public void put(ResourceLocation id, GatewayData gatewayData) {
         this.gateways.put(id, gatewayData);
         this.setDirty();
     }
 
-    // Looks up one saved dynamic gateway definition.
+    // 查询一个已保存的动态网关定义。
     public String get(ResourceLocation id) {
         GatewayData gatewayData = this.gateways.get(id);
         return gatewayData == null ? null : gatewayData.json();
@@ -90,7 +91,7 @@ public class DynamicGatewaySavedData extends SavedData {
         return this.gateways.get(id);
     }
 
-    // Returns a snapshot of all saved dynamic gateways.
+    // 返回所有已保存动态网关的快照。
     public Map<ResourceLocation, GatewayData> entries() {
         return new LinkedHashMap<>(this.gateways);
     }

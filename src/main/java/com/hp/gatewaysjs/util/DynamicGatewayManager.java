@@ -1,29 +1,26 @@
 package com.hp.gatewaysjs.util;
 
 import com.google.common.collect.ImmutableMap;
-import com.hp.gatewaysjs.Gatewaysjs;
-import com.hp.gatewaysjs.network.GatewaysJSNetwork;
 import com.hp.gatewaysjs.network.SyncDynamicGatewayMetadataPacket;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
-import dev.shadowsoffire.placebo.Placebo;
 import dev.shadowsoffire.placebo.reload.RegistryCallback;
-import dev.shadowsoffire.placebo.reload.ReloadListenerPacket;
+import dev.shadowsoffire.placebo.reload.ReloadListenerPayloads;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Tracks runtime-created gateways, syncs them to clients, and persists them in the world save.
+ * 跟踪运行时创建的网关，并负责保存和同步。
  */
 public final class DynamicGatewayManager {
 
@@ -43,7 +40,7 @@ public final class DynamicGatewayManager {
     private DynamicGatewayManager() {
     }
 
-    // Hooks the runtime cache back into Placebo reloads.
+    // 将运行时缓存重新接回 Placebo 重载流程。
     public static void bootstrap() {
         GatewayRegistry.INSTANCE.addCallback(RegistryCallback.reloadOnly(registry -> {
             if (DYNAMIC_GATEWAYS.isEmpty()) {
@@ -54,7 +51,7 @@ public final class DynamicGatewayManager {
         }));
     }
 
-    // Registers a runtime gateway, writes it into world save data, and syncs it to clients.
+    // 注册运行时网关，写入世界存档，并同步到客户端。
     public static boolean register(ResourceLocation id, Gateway gateway) {
         return register(id, gateway, null, null, null, false);
     }
@@ -132,13 +129,13 @@ public final class DynamicGatewayManager {
         ));
     }
 
-    // Restores persisted dynamic gateways as early as the server lifecycle allows.
+    // 在服务端生命周期允许时尽早恢复已保存的动态网关。
     public static void onServerAboutToStart(ServerAboutToStartEvent event) {
         restoreAll(event.getServer());
         reapplyPreServerRegistrations(event.getServer());
     }
 
-    // Retries restoration once the server is fully started if early restoration had no world access yet.
+    // 如果早期恢复时还没有世界访问权限，则在服务端启动完成后重试。
     public static void onServerStarted(ServerStartedEvent event) {
         if (!restoredForCurrentServer) {
             restoreAll(event.getServer());
@@ -150,14 +147,14 @@ public final class DynamicGatewayManager {
         }
     }
 
-    // Syncs dynamic gateways to players that join after the registry was rebuilt.
+    // 向注册表重建后加入的玩家同步动态网关。
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && !DYNAMIC_GATEWAYS.isEmpty()) {
             syncToPlayer(player);
         }
     }
 
-    // Clears server-scoped runtime cache so separate saves do not leak gateways into each other.
+    // 清理服务端作用域缓存，避免不同存档之间串数据。
     public static void onServerStopped(ServerStoppedEvent event) {
         DYNAMIC_GATEWAYS.clear();
         DISPLAY_NAMES.clear();
@@ -167,7 +164,7 @@ public final class DynamicGatewayManager {
         restoredForCurrentServer = false;
     }
 
-    // Makes sure a saved dynamic gateway exists before a gateway entity validates its holder during load.
+    // 在网关实体加载时校验 holder 前，确保已保存的动态网关可用。
     public static void ensureGatewayAvailable(ResourceLocation id) {
         if (RegistryHelper.isRegistered(GatewayRegistry.INSTANCE, id)) {
             return;
@@ -187,17 +184,19 @@ public final class DynamicGatewayManager {
         registerInternal(id, gateway, server, false, false);
     }
 
-    // Syncs the registry contents to all connected clients.
+    // 向所有客户端同步注册表内容。
     public static void syncToAll() {
-        sync(PacketDistributor.ALL.noArg());
+        sendRegistryToAll();
+        PacketDistributor.sendToAllPlayers(SyncDynamicGatewayMetadataPacket.create());
     }
 
-    // Syncs the registry contents to a single client.
+    // 向单个客户端同步注册表内容。
     public static void syncToPlayer(ServerPlayer player) {
-        sync(PacketDistributor.PLAYER.with(() -> player));
+        sendRegistryToPlayer(player);
+        PacketDistributor.sendToPlayer(player, SyncDynamicGatewayMetadataPacket.create());
     }
 
-    // Restores all persisted dynamic gateways from the world save.
+    // 从世界存档恢复所有动态网关。
     private static void restoreAll(MinecraftServer server) {
         if (server == null || server.overworld() == null) {
             return;
@@ -219,7 +218,7 @@ public final class DynamicGatewayManager {
         restoredForCurrentServer = true;
     }
 
-    // Performs the shared registry/cache/save/sync bookkeeping for runtime gateways.
+    // 处理运行时网关共用的注册、缓存、保存和同步逻辑。
     private static boolean registerInternal(ResourceLocation id, Gateway gateway, MinecraftServer server, boolean persistToSave, boolean syncClients) {
         boolean registered = RegistryHelper.register(GatewayRegistry.INSTANCE, id, gateway);
         DYNAMIC_GATEWAYS.put(id, gateway);
@@ -292,16 +291,25 @@ public final class DynamicGatewayManager {
         }
     }
 
-    // Uses Placebo's native reload packets so clients rebuild the same dynamic registry entries.
-    private static void sync(PacketDistributor.PacketTarget target) {
-        Placebo.CHANNEL.send(target, new ReloadListenerPacket.Start(GATEWAY_REGISTRY_PATH));
+    private static void sendRegistryToAll() {
+        PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.Start(GATEWAY_REGISTRY_PATH));
         GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
             Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
             if (gateway != null) {
-                Placebo.CHANNEL.send(target, new ReloadListenerPacket.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+                PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
             }
         });
-        Placebo.CHANNEL.send(target, new ReloadListenerPacket.End(GATEWAY_REGISTRY_PATH));
-        GatewaysJSNetwork.CHANNEL.send(target, SyncDynamicGatewayMetadataPacket.create());
+        PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.End(GATEWAY_REGISTRY_PATH));
+    }
+
+    private static void sendRegistryToPlayer(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.Start(GATEWAY_REGISTRY_PATH));
+        GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
+            Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
+            if (gateway != null) {
+                PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+            }
+        });
+        PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.End(GATEWAY_REGISTRY_PATH));
     }
 }

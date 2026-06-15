@@ -60,7 +60,7 @@ public class RegistryHelper {
             // 转换为可变 Map
             BiMap<ResourceLocation, T> mutableRegistry = HashBiMap.create(currentRegistry);
 
-            // Remove the old entry first so the same gateway id can be refreshed.
+            // 先移除旧条目，允许同一个网关 ID 刷新。
             mutableRegistry.remove(key);
 
             // 添加新条目
@@ -72,7 +72,7 @@ public class RegistryHelper {
             // 使用 holder() 方法获取或创建 holder
             DynamicHolder<T> holder = registry.holder(key);
 
-            // Refresh an existing holder that may still point at the old gateway.
+            // 刷新可能还指向旧网关的 holder。
             unbindMethod.invoke(holder);
             bindMethod.invoke(holder);
 
@@ -97,16 +97,14 @@ public class RegistryHelper {
     }
 
     /**
-     * Serializes a dynamic registry entry into JSON using the registry codec map.
+     * 使用注册表 codec map 将动态注册表条目序列化为 JSON。
      */
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> String encodeToJson(DynamicRegistry<T> registry, T value) {
         try {
             initReflection();
             CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
-            JsonElement element = codecMap.encodeStart(JsonOps.INSTANCE, value).getOrThrow(false, message -> {
-                throw new IllegalStateException(message);
-            });
+            JsonElement element = codecMap.encodeStart(JsonOps.INSTANCE, value).getOrThrow(IllegalStateException::new);
             return element.toString();
         } catch (Exception e) {
             throw new RuntimeException("Failed to encode registry value " + value, e);
@@ -114,16 +112,14 @@ public class RegistryHelper {
     }
 
     /**
-     * Restores a dynamic registry entry from JSON using the registry codec map.
+     * 使用注册表 codec map 从 JSON 恢复动态注册表条目。
      */
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> T decodeFromJson(DynamicRegistry<T> registry, String json) {
         try {
             initReflection();
             CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
-            Pair<T, JsonElement> decoded = codecMap.decode(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow(false, message -> {
-                throw new IllegalStateException(message);
-            });
+            Pair<T, JsonElement> decoded = codecMap.decode(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow(IllegalStateException::new);
             return decoded.getFirst();
         } catch (Exception e) {
             throw new RuntimeException("Failed to decode registry value from json", e);

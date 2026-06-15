@@ -10,13 +10,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Restores saved dynamic gateway definitions before gateway entities validate their registry holder.
+ * 在网关实体校验注册表 holder 前恢复已保存的动态网关定义。
  */
 @Mixin(GatewayEntity.class)
 public class GatewayEntityPersistenceMixin {
 
-    // Restores a missing runtime gateway from world save data before the original load logic checks it.
-    @Inject(method = "readAdditionalSaveData", at = @At("HEAD"))
+    // 在原加载逻辑检查前，从世界存档恢复缺失的运行时网关。
+    @Inject(method = "readAdditionalSaveData", at = @At("HEAD"), remap = false)
     private void gatewaysjs$restoreDynamicGateway(CompoundTag tag, CallbackInfo ci) {
         if (tag.contains("gate")) {
             DynamicGatewayManager.ensureGatewayAvailable(ResourceLocation.parse(tag.getString("gate")));
