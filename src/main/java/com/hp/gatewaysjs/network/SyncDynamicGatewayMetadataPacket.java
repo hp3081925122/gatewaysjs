@@ -13,7 +13,7 @@ import java.util.Map;
 
 public record SyncDynamicGatewayMetadataPacket(Map<ResourceLocation, Entry> entries) implements CustomPacketPayload {
 
-    public static final Type<SyncDynamicGatewayMetadataPacket> TYPE = CustomPacketPayload.createType(Gatewaysjs.MODID + ":sync_dynamic_gateway_metadata");
+    public static final Type<SyncDynamicGatewayMetadataPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(Gatewaysjs.MODID, "sync_dynamic_gateway_metadata"));
     public static final StreamCodec<RegistryFriendlyByteBuf, SyncDynamicGatewayMetadataPacket> STREAM_CODEC = CustomPacketPayload.codec(
             SyncDynamicGatewayMetadataPacket::encode,
             SyncDynamicGatewayMetadataPacket::decode

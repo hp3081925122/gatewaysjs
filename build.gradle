@@ -75,6 +75,8 @@ dependencies {
     implementation 'curse.maven:apotheosis-313970:8182695'
     implementation 'curse.maven:kubejs-238086:8083208'
     implementation 'curse.maven:rhino-416294:7104526'
+    implementation 'curse.maven:apothic-enchanting-1063926:8107222'
+    implementation 'curse.maven:apothic-spawners-986583:7492121'
 }
 
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {

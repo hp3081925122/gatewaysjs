@@ -4,8 +4,11 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.gate.Reward;
 import dev.shadowsoffire.gateways.gate.WaveEntity;
+import dev.shadowsoffire.gateways.gate.WaveModifier;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.ModList;
+
+import java.util.Arrays;
 
 public final class ApotheosisGatewayCompat {
 
@@ -39,10 +42,77 @@ public final class ApotheosisGatewayCompat {
     }
 
     public static Reward createAffixReward(String rarityId) {
+        return createAffixItemReward(rarityId);
+    }
+
+    public static Reward createAffixItemReward(String... rarityIds) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:affix_item");
+        json.add("rarities", buildStringArray(rarityIds));
+        return decodeReward(json);
+    }
+
+    public static Reward createGemReward(String... purityIds) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:gem");
+        json.add("purities", buildStringArray(purityIds));
+        return decodeReward(json);
+    }
+
+    public static Reward createTrueRandomGemReward(String... purityIds) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:true_random_gem");
+        json.add("purities", buildStringArray(purityIds));
+        return decodeReward(json);
+    }
+
+    public static WaveEntity createInvaderWaveEntity(String invaderId, int count, String description) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:invader");
+        json.addProperty("invader", ResourceLocation.parse(invaderId).toString());
+        json.addProperty("count", count);
+        if (description != null && !description.isBlank()) {
+            json.addProperty("desc", description);
+        }
+        return decodeWaveEntity(json);
+    }
+
+    public static WaveEntity createTrueRandomInvaderWaveEntity(int count, String description) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:true_random_invader");
+        json.addProperty("count", count);
+        if (description != null && !description.isBlank()) {
+            json.addProperty("desc", description);
+        }
+        return decodeWaveEntity(json);
+    }
+
+    public static WaveEntity createEliteWaveEntity(String eliteId, String baseEntityJson, String description) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:elite");
+        json.add("base_entity", com.google.gson.JsonParser.parseString(baseEntityJson));
+        json.addProperty("elite", ResourceLocation.parse(eliteId).toString());
+        if (description != null && !description.isBlank()) {
+            json.addProperty("desc", description);
+        }
+        return decodeWaveEntity(json);
+    }
+
+    public static WaveModifier createAffixWaveModifier(float affixChance, String... rarityIds) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:affix");
-        json.addProperty("rarity", ResourceLocation.parse(rarityId).toString());
-        return decodeReward(json);
+        json.addProperty("affix_chance", affixChance);
+        if (rarityIds != null && rarityIds.length > 0) {
+            json.add("rarities", buildStringArray(rarityIds));
+        }
+        return decodeWaveModifier(json);
+    }
+
+    public static WaveModifier createPassengerWaveModifier(String entityJson) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:passenger");
+        json.add("entity", com.google.gson.JsonParser.parseString(entityJson));
+        return decodeWaveModifier(json);
     }
 
     private static WaveEntity decodeWaveEntity(JsonObject json) {
@@ -54,6 +124,15 @@ public final class ApotheosisGatewayCompat {
             .orElseThrow(() -> new IllegalArgumentException("无法解码Apotheosis Boss波次实体。"));
     }
 
+    private static WaveModifier decodeWaveModifier(JsonObject json) {
+        checkLoaded();
+        return WaveModifier.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Apotheosis波次修饰器。"));
+    }
+
     private static Reward decodeReward(JsonObject json) {
         checkLoaded();
         return Reward.CODEC.parse(JsonOps.INSTANCE, json)
@@ -61,5 +140,18 @@ public final class ApotheosisGatewayCompat {
                 throw new IllegalArgumentException(message);
             })
             .orElseThrow(() -> new IllegalArgumentException("无法解码Apotheosis词缀奖励。"));
+    }
+
+    private static com.google.gson.JsonArray buildStringArray(String... values) {
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        if (values == null) {
+            return array;
+        }
+        Arrays.stream(values)
+            .filter(value -> value != null && !value.isBlank())
+            .map(ResourceLocation::parse)
+            .map(ResourceLocation::toString)
+            .forEach(array::add);
+        return array;
     }
 }

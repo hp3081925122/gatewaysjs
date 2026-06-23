@@ -11,11 +11,13 @@ import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
 import dev.shadowsoffire.gateways.gate.endless.EndlessGateway;
+import dev.shadowsoffire.gateways.item.GatePearlItem;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
@@ -245,21 +247,22 @@ public interface GatewayAPI {
      * 创建传送门珍珠物品栈
      *
      * @param gatewayId 传送门ID
-     * @return 物品栈JSON表示，用于give命令等
+     * @return 已绑定网关数据组件的珍珠物品栈
      */
-    static String createPearlItem(String gatewayId) {
+    static ItemStack createPearlItem(String gatewayId) {
         try {
             ResourceLocation loc = ResourceLocation.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
 
             if (!holder.isBound()) {
-                return "minecraft:air";
+                return ItemStack.EMPTY;
             }
 
-            // 返回带有NBT的物品命令格式
-            return "gateways:gate_pearl{gateway:\"" + gatewayId + "\"}";
+            ItemStack stack = new ItemStack(dev.shadowsoffire.gateways.GatewayObjects.GATE_PEARL);
+            GatePearlItem.setGate(stack, holder);
+            return stack;
         } catch (Exception e) {
-            return "minecraft:air";
+            return ItemStack.EMPTY;
         }
     }
 
@@ -387,6 +390,14 @@ public interface GatewayAPI {
      */
     static GatewayBuilder customBuilder(String id) {
         return GatewayBuilder.custom(id);
+    }
+
+    static GatewayBuilder endlessBuilder(String id) {
+        return GatewayBuilder.custom(id).asEndlessGateway();
+    }
+
+    static GatewayBuilder apotheosisTieredBuilder(String id, String tierId) {
+        return GatewayBuilder.custom(id).asApotheosisTieredGateway(tierId);
     }
 
     static boolean registerJson(String id, String gatewayJson) {

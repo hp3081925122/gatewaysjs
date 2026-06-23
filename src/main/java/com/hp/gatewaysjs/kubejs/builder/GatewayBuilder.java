@@ -5,13 +5,18 @@ import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 import com.hp.gatewaysjs.util.GatewayRenderData;
+import com.hp.gatewaysjs.util.RegistryHelper;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.gate.*;
+import dev.shadowsoffire.gateways.gate.endless.ApplicationMode;
+import dev.shadowsoffire.gateways.gate.endless.EndlessGateway;
+import dev.shadowsoffire.gateways.gate.endless.EndlessModifier;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
+import dev.shadowsoffire.placebo.reload.DynamicRegistry;
 import dev.shadowsoffire.placebo.json.ChancedEffectInstance;
 import dev.shadowsoffire.placebo.json.RandomAttributeModifier;
 import dev.shadowsoffire.gateways.gate.SpawnAlgorithms.SpawnAlgorithm;
@@ -21,10 +26,12 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -91,6 +98,12 @@ import java.util.function.Consumer;
 @SuppressWarnings("removal")
 public class GatewayBuilder {
 
+    public enum GatewayKind {
+        normal,
+        endless,
+        apotheosis_tiered
+    }
+
     /**
      * 属性修饰操作类型
      */
@@ -102,6 +115,7 @@ public class GatewayBuilder {
 
     private final ResourceLocation gatewayId;
     private final boolean isCustom;
+    private GatewayKind gatewayKind = GatewayKind.normal;
     
     // 生成位置
     private double x, y, z;
@@ -126,6 +140,11 @@ public class GatewayBuilder {
     private SpawnAlgorithm spawnAlgo = SpawnAlgorithms.OPEN_FIELD;
     private GateRules rules = GateRules.DEFAULT;
     private BossEventSettings bossSettings = BossEventSettings.DEFAULT;
+    @Nullable
+    private Holder<SoundEvent> soundtrack;
+    @Nullable
+    private String tieredTierId;
+    private final List<EndlessModifierBuilder> endlessModifierBuilders = new ArrayList<>();
 
     // 自定义纹理（仅客户端渲染用）
     @Nullable
@@ -222,6 +241,23 @@ public class GatewayBuilder {
      */
     public GatewayBuilder showPearlInCreativeTab(boolean show) {
         this.hidePearlInCreativeTab = !show;
+        return this;
+    }
+
+    public GatewayBuilder asNormalGateway() {
+        this.gatewayKind = GatewayKind.normal;
+        return this;
+    }
+
+    public GatewayBuilder asEndlessGateway() {
+        this.gatewayKind = GatewayKind.endless;
+        return this;
+    }
+
+    public GatewayBuilder asApotheosisTieredGateway(String tierId) {
+        ApotheosisGatewayCompat.checkLoaded();
+        this.gatewayKind = GatewayKind.apotheosis_tiered;
+        this.tieredTierId = tierId;
         return this;
     }
 
@@ -638,7 +674,41 @@ public class GatewayBuilder {
      * 添加Apotheosis词缀物品奖励（传送门完成时发放）
      */
     public GatewayBuilder addApotheosisAffixReward(String rarityId) {
-        this.rewards.add(ApotheosisGatewayCompat.createAffixReward(rarityId));
+        this.rewards.add(ApotheosisGatewayCompat.createAffixItemReward(rarityId));
+        return this;
+    }
+
+    public GatewayBuilder addApotheosisAffixItemReward(String... rarityIds) {
+        this.rewards.add(ApotheosisGatewayCompat.createAffixItemReward(rarityIds));
+        return this;
+    }
+
+    public GatewayBuilder addApotheosisGemReward(String... purityIds) {
+        this.rewards.add(ApotheosisGatewayCompat.createGemReward(purityIds));
+        return this;
+    }
+
+    public GatewayBuilder addApotheosisTrueRandomGemReward(String... purityIds) {
+        this.rewards.add(ApotheosisGatewayCompat.createTrueRandomGemReward(purityIds));
+        return this;
+    }
+
+    public GatewayBuilder soundtrack(String soundId) {
+        this.soundtrack = resolveSound(soundId);
+        return this;
+    }
+
+    public GatewayBuilder addEndlessModifier() {
+        asEndlessGateway();
+        endlessModifierBuilders.add(new EndlessModifierBuilder(this));
+        return this;
+    }
+
+    public GatewayBuilder addEndlessModifier(Consumer<EndlessModifierBuilder> consumer) {
+        asEndlessGateway();
+        EndlessModifierBuilder builder = new EndlessModifierBuilder(this);
+        consumer.accept(builder);
+        endlessModifierBuilders.add(builder);
         return this;
     }
 
@@ -1077,17 +1147,39 @@ public class GatewayBuilder {
             throw new IllegalStateException("Gateway must have at least one wave!");
         }
 
-        // 创建 NormalGateway
-        NormalGateway gateway = new NormalGateway(
-            size,
-            color,
-            waves,
-            rewards,
-            failures,
-            spawnAlgo,
-            rules,
-            bossSettings
-        );
+        Gateway gateway;
+        if (gatewayKind == GatewayKind.endless) {
+            List<EndlessModifier> builtModifiers = new ArrayList<>();
+            for (EndlessModifierBuilder builder : endlessModifierBuilders) {
+                builtModifiers.add(builder.build());
+            }
+            gateway = new EndlessGateway(
+                size,
+                color,
+                waves.getFirst(),
+                builtModifiers,
+                failures,
+                spawnAlgo,
+                rules,
+                bossSettings,
+                soundtrackOrDefault()
+            );
+        }
+        else if (gatewayKind == GatewayKind.apotheosis_tiered) {
+            gateway = createApotheosisTieredGateway(waves);
+        }
+        else {
+            gateway = new NormalGateway(
+                size,
+                color,
+                waves,
+                rewards,
+                failures,
+                spawnAlgo,
+                rules,
+                bossSettings
+            );
+        }
 
         // 使用反射工具类注册，同 ID 已存在时会替换旧注册并刷新 holder
         DynamicGatewayManager.register(gatewayId, gateway, customName, tooltipKey, tooltipText, hidePearlInCreativeTab);
@@ -1223,6 +1315,36 @@ public class GatewayBuilder {
             return this;
         }
 
+        public WaveBuilder addApotheosisInvader(String invaderId, int count) {
+            customEntities.add(ApotheosisGatewayCompat.createInvaderWaveEntity(invaderId, count, null));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisInvader(String invaderId, int count, String description) {
+            customEntities.add(ApotheosisGatewayCompat.createInvaderWaveEntity(invaderId, count, description));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisTrueRandomInvader(int count) {
+            customEntities.add(ApotheosisGatewayCompat.createTrueRandomInvaderWaveEntity(count, null));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisTrueRandomInvader(int count, String description) {
+            customEntities.add(ApotheosisGatewayCompat.createTrueRandomInvaderWaveEntity(count, description));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisElite(String eliteId, String entityId) {
+            return addApotheosisElite(eliteId, entityId, null, 1);
+        }
+
+        public WaveBuilder addApotheosisElite(String eliteId, String entityId, String description, int count) {
+            String baseEntityJson = "{\"type\":\"gateways:standard\",\"entity\":\"" + ResourceLocation.parse(entityId) + "\",\"count\":" + count + "}";
+            customEntities.add(ApotheosisGatewayCompat.createEliteWaveEntity(eliteId, baseEntityJson, description));
+            return this;
+        }
+
         /**
          * 为本波所有实体添加属性修饰，默认使用 addition
          */
@@ -1270,6 +1392,16 @@ public class GatewayBuilder {
 
         public WaveBuilder addModifierJson(String modifierJson) {
             modifiers.add(parseWaveModifier(modifierJson));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisAffixModifier(float affixChance, String... rarityIds) {
+            modifiers.add(ApotheosisGatewayCompat.createAffixWaveModifier(affixChance, rarityIds));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisPassenger(String passengerEntityJson) {
+            modifiers.add(ApotheosisGatewayCompat.createPassengerWaveModifier(passengerEntityJson));
             return this;
         }
 
@@ -1422,7 +1554,22 @@ public class GatewayBuilder {
          * 添加Apotheosis词缀物品奖励到波次
          */
         public WaveBuilder addApotheosisAffixReward(String rarityId) {
-            this.rewards.add(ApotheosisGatewayCompat.createAffixReward(rarityId));
+            this.rewards.add(ApotheosisGatewayCompat.createAffixItemReward(rarityId));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisAffixItemReward(String... rarityIds) {
+            this.rewards.add(ApotheosisGatewayCompat.createAffixItemReward(rarityIds));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisGemReward(String... purityIds) {
+            this.rewards.add(ApotheosisGatewayCompat.createGemReward(purityIds));
+            return this;
+        }
+
+        public WaveBuilder addApotheosisTrueRandomGemReward(String... purityIds) {
+            this.rewards.add(ApotheosisGatewayCompat.createTrueRandomGemReward(purityIds));
             return this;
         }
 
@@ -1764,5 +1911,121 @@ public class GatewayBuilder {
             merged.merge(override);
         }
         return merged;
+    }
+
+    private Gateway createApotheosisTieredGateway(List<Wave> waves) {
+        ApotheosisGatewayCompat.checkLoaded();
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "apotheosis:tiered");
+        JsonObject settings = new JsonObject();
+        settings.addProperty("tier", parseRequiredTierId());
+        settings.addProperty("size", size.name().toLowerCase());
+        settings.addProperty("color", String.format("#%06X", color.getValue() & 0xFFFFFF));
+        if (soundtrack != null) {
+            settings.addProperty("soundtrack", BuiltInRegistries.SOUND_EVENT.getKey(soundtrack.value()).toString());
+        }
+        json.add("settings", settings);
+        json.add("waves", parseJsonArray(waves, Wave.CODEC, "无法编码Tiered网关波次。"));
+        json.add("rewards", parseJsonArray(rewards, Reward.CODEC, "无法编码Tiered网关奖励。"));
+        json.add("failures", parseJsonArray(failures, Failure.CODEC, "无法编码Tiered网关失败惩罚。"));
+        json.add("rules", GateRules.CODEC.encodeStart(JsonOps.INSTANCE, rules).getOrThrow(IllegalStateException::new));
+        json.add("boss_event", BossEventSettings.CODEC.encodeStart(JsonOps.INSTANCE, bossSettings).getOrThrow(IllegalStateException::new));
+        return RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json.toString());
+    }
+
+    private Holder<SoundEvent> soundtrackOrDefault() {
+        return soundtrack != null ? soundtrack : BuiltInRegistries.SOUND_EVENT.wrapAsHolder(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.withDefaultNamespace("music.creative")));
+    }
+
+    private String parseRequiredTierId() {
+        if (tieredTierId == null || tieredTierId.isBlank()) {
+            throw new IllegalStateException("Apotheosis tiered gateway requires a tier id.");
+        }
+        return switch (tieredTierId.toLowerCase()) {
+            case "haven", "frontier", "ascent", "summit", "pinnacle" -> tieredTierId.toLowerCase();
+            default -> throw new IllegalArgumentException("Unknown Apotheosis world tier: " + tieredTierId);
+        };
+    }
+
+    private static Holder<SoundEvent> resolveSound(String soundId) {
+        ResourceLocation id = ResourceLocation.parse(soundId);
+        SoundEvent sound = BuiltInRegistries.SOUND_EVENT.get(id);
+        if (sound == null) {
+            throw new IllegalArgumentException("Unknown sound event: " + soundId);
+        }
+        return BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound);
+    }
+
+    private static <T> com.google.gson.JsonArray parseJsonArray(List<T> values, com.mojang.serialization.Codec<T> codec, String errorMessage) {
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        for (T value : values) {
+            array.add(codec.encodeStart(JsonOps.INSTANCE, value)
+                .resultOrPartial(message -> {
+                    throw new IllegalArgumentException(message);
+                })
+                .orElseThrow(() -> new IllegalArgumentException(errorMessage)));
+        }
+        return array;
+    }
+
+    public static class EndlessModifierBuilder {
+        private final GatewayBuilder parent;
+        private final List<WaveEntity> entities = new ArrayList<>();
+        private final List<Reward> rewards = new ArrayList<>();
+        private final List<WaveModifier> modifiers = new ArrayList<>();
+        private String applicationModeJson = "{\"type\":\"gateways:after_wave\",\"wave\":1}";
+        private int maxWaveTime;
+        private int setupTime;
+
+        EndlessModifierBuilder(GatewayBuilder parent) {
+            this.parent = parent;
+        }
+
+        public EndlessModifierBuilder applicationModeJson(String json) {
+            this.applicationModeJson = json;
+            return this;
+        }
+
+        public EndlessModifierBuilder maxTimeDelta(int ticks) {
+            this.maxWaveTime = ticks;
+            return this;
+        }
+
+        public EndlessModifierBuilder setupTimeDelta(int ticks) {
+            this.setupTime = ticks;
+            return this;
+        }
+
+        public EndlessModifierBuilder addEntityJson(String entityJson) {
+            this.entities.add(parseWaveEntity(entityJson));
+            return this;
+        }
+
+        public EndlessModifierBuilder addRewardJson(String rewardJson) {
+            this.rewards.add(parseReward(rewardJson));
+            return this;
+        }
+
+        public EndlessModifierBuilder addModifierJson(String modifierJson) {
+            this.modifiers.add(parseWaveModifier(modifierJson));
+            return this;
+        }
+
+        public GatewayBuilder buildModifier() {
+            return parent;
+        }
+
+        EndlessModifier build() {
+            return new EndlessModifier(parseApplicationMode(applicationModeJson), entities, rewards, modifiers, maxWaveTime, setupTime);
+        }
+    }
+
+    private static ApplicationMode parseApplicationMode(String applicationModeJson) {
+        JsonElement json = JsonParser.parseString(applicationModeJson);
+        return ApplicationMode.CODEC.parse(JsonOps.INSTANCE, json)
+            .resultOrPartial(message -> {
+                throw new IllegalArgumentException(message);
+            })
+            .orElseThrow(() -> new IllegalArgumentException("无法解码Endless应用模式JSON。"));
     }
 }

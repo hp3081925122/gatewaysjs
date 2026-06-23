@@ -16,6 +16,9 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         tooltipText(text: string): this
         hidePearlInCreativeTab(): this
         showPearlInCreativeTab(show: boolean): this
+        asNormalGateway(): this
+        asEndlessGateway(): this
+        asApotheosisTieredGateway(tierId: "haven" | "frontier" | "ascent" | "summit" | "pinnacle" | string): this
         size(sizeName: "small" | "medium" | "large" | string): this
         color(hexColor: number): this
         setColor(hexColor: number): this
@@ -58,6 +61,9 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         addSummonReward(entityId: string, nbtString: string, count: number): this
         addChancedReward(rewardJson: string, chance: number): this
         addApotheosisAffixReward(rarityId: string): this
+        addApotheosisAffixItemReward(...rarityIds: string[]): this
+        addApotheosisGemReward(...purityIds: string[]): this
+        addApotheosisTrueRandomGemReward(...purityIds: string[]): this
         addFailureJson(failureJson: string): this
         addCommandFailure(command: string, description: string): this
         addSummonFailure(entityId: string, count: number): this
@@ -66,9 +72,13 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         addMobEffectFailure(effect: MobEffect, duration: number): this
         addMobEffectFailure(effect: MobEffect, duration: number, amplifier: number): this
         addChancedFailure(failureJson: string, chance: number): this
+        addEndlessModifier(): this
+        addEndlessModifier(consumer: (modifier: GatewayBuilder.EndlessModifierBuilder) => void): this
         spawnAlgorithm(algorithm: "open_field" | "inward_spiral" | string): this
+        soundtrack(soundId: string): this
         rules(rules: dev.shadowsoffire.gateways.gate.GateRules): this
         rules(spawnRange: number, leashRange: number, allowDiscarding: boolean, allowDimChange: boolean, playerDamageOnly: boolean, removeMobsOnFailure: boolean, failOnOutOfBounds: boolean, spacing: number, followRangeBoost: number, defaultDropChance: number): this
+        rules(spawnRange: number, leashRange: number, allowDiscarding: boolean, allowDimChange: boolean, playerDamageOnly: boolean, removeMobsOnFailure: boolean, failOnOutOfBounds: boolean, spacing: number, followRangeBoost: number, defaultDropChance: number, requiresNearbyPlayer: boolean, lives: number): this
         spawnRange(spawnRange: number): this
         leashRange(leashRange: number): this
         allowDiscarding(allowDiscarding: boolean): this
@@ -80,6 +90,8 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         spacing(spacing: number): this
         followRangeBoost(followRangeBoost: number): this
         defaultDropChance(defaultDropChance: number): this
+        requiresNearbyPlayer(requiresNearbyPlayer: boolean): this
+        lives(lives: number): this
         bossEvent(mode: "boss_bar" | "name_plate" | string, fog: boolean): this
         bossEventMode(mode: "boss_bar" | "name_plate" | string): this
         bossEventFog(fog: boolean): this
@@ -99,6 +111,12 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
             addEntityJson(entityJson: string): this
             addApotheosisBoss(): this
             addApotheosisBoss(bossId: string): this
+            addApotheosisInvader(invaderId: string, count: number): this
+            addApotheosisInvader(invaderId: string, count: number, description: string): this
+            addApotheosisTrueRandomInvader(count: number): this
+            addApotheosisTrueRandomInvader(count: number, description: string): this
+            addApotheosisElite(eliteId: string, entityId: string): this
+            addApotheosisElite(eliteId: string, entityId: string, description: string, count: number): this
             addAttribute(attribute: Attribute, value: number): this
             addAttribute(attribute: Attribute, value: number, operation: AttributeOperation): this
             addEffect(effect: MobEffect, amplifier: number): this
@@ -106,6 +124,8 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
             addEffect(effect: MobEffect, amplifier: number, chance: number, ambient: boolean, visible: boolean): this
             addGearSet(gearSetId: string): this
             addModifierJson(modifierJson: string): this
+            addApotheosisAffixModifier(affixChance: number, ...rarityIds: string[]): this
+            addApotheosisPassenger(passengerEntityJson: string): this
             maxTime(ticks: number): this
             setupTime(ticks: number): this
             addReward(itemId: string, count: number): this
@@ -128,6 +148,9 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
             addSummonReward(entityId: string, nbtString: string, count: number): this
             addChancedReward(rewardJson: string, chance: number): this
             addApotheosisAffixReward(rarityId: string): this
+            addApotheosisAffixItemReward(...rarityIds: string[]): this
+            addApotheosisGemReward(...purityIds: string[]): this
+            addApotheosisTrueRandomGemReward(...purityIds: string[]): this
             buildWave(): GatewayBuilder
         }
 
@@ -148,12 +171,43 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
             addNbt(nbtString: string): this
             finalizeSpawn(finalizeSpawn: boolean): this
         }
+
+        interface EndlessModifierBuilder {
+            applicationModeJson(json: string): this
+            maxTimeDelta(ticks: number): this
+            setupTimeDelta(ticks: number): this
+            addEntityJson(entityJson: string): this
+            addRewardJson(rewardJson: string): this
+            addModifierJson(modifierJson: string): this
+            buildModifier(): GatewayBuilder
+        }
     }
 }
 
 declare const Gateway: {
+    getAllGatewayIds(): string[]
+    getAllGatewayIds(sortBy: "size" | "id" | "none" | string): string[]
+    exists(gatewayId: string): boolean
+    getGateway(gatewayId: string): com.hp.gatewaysjs.kubejs.wrapper.GatewayWrapper | null
+    getGatewayType(gatewayId: string): "normal" | "endless" | "unknown" | string
+    createGateway(level: net.minecraft.world.level.Level, gatewayId: string, x: number, y: number, z: number, player: net.minecraft.world.entity.player.Player | null): boolean
+    createGatewayAtPos(level: net.minecraft.world.level.Level, gatewayId: string, pos: net.minecraft.core.BlockPos, player: net.minecraft.world.entity.player.Player | null): boolean
+    createPearlItem(gatewayId: string): net.minecraft.world.item.ItemStack
+    getGatewayCount(): number
+    getNormalGatewayIds(): string[]
+    getEndlessGatewayIds(): string[]
+    getGatewaysBySize(size: string): string[]
     builder(id: string): com.hp.gatewaysjs.kubejs.builder.GatewayBuilder
     customBuilder(id: string): com.hp.gatewaysjs.kubejs.builder.GatewayBuilder
+    endlessBuilder(id: string): com.hp.gatewaysjs.kubejs.builder.GatewayBuilder
+    apotheosisTieredBuilder(id: string, tierId: string): com.hp.gatewaysjs.kubejs.builder.GatewayBuilder
     registerJson(id: string, gatewayJson: string): boolean
     registerJson(id: string, gatewayJson: string, displayName: string): boolean
+    hidePearlInCreativeTab(gatewayId: string): void
+    showPearlInCreativeTab(gatewayId: string): void
+    setEntityTexture(gatewayId: string, texturePath: string): void
+    setBossBarTexture(gatewayId: string, texturePath: string): void
+    setBossBarTexture(gatewayId: string, texturePath: string, bgU: number, bgV: number, fillU: number, fillV: number, barWidth: number, barHeight: number, texWidth: number, texHeight: number): void
+    setBossBarTexture(gatewayId: string, texturePath: string, progressTexturePath: string): void
+    setBossBarTexture(gatewayId: string, texturePath: string, progressTexturePath: string, bgU: number, bgV: number, fillU: number, fillV: number, barWidth: number, barHeight: number, texWidth: number, texHeight: number): void
 }

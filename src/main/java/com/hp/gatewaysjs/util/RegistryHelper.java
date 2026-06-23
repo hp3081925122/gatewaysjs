@@ -1,14 +1,14 @@
 package com.hp.gatewaysjs.util;
 
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Maps;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.placebo.codec.CodecMap;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
+import dev.shadowsoffire.placebo.reload.DynRegBiMap;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import dev.shadowsoffire.placebo.reload.DynamicRegistry;
 import net.minecraft.resources.ResourceLocation;
@@ -57,8 +57,9 @@ public class RegistryHelper {
             // 获取当前 registry map
             BiMap<ResourceLocation, T> currentRegistry = (BiMap<ResourceLocation, T>) registryField.get(registry);
 
-            // 转换为可变 Map
-            BiMap<ResourceLocation, T> mutableRegistry = HashBiMap.create(currentRegistry);
+            // 转换为 Placebo 动态注册表使用的可变 Map。
+            BiMap<ResourceLocation, T> mutableRegistry = new DynRegBiMap<>();
+            mutableRegistry.putAll(currentRegistry);
 
             // 先移除旧条目，允许同一个网关 ID 刷新。
             mutableRegistry.remove(key);
@@ -66,8 +67,8 @@ public class RegistryHelper {
             // 添加新条目
             mutableRegistry.put(key, value);
 
-            // 转换回 ImmutableBiMap 并设置
-            registryField.set(registry, ImmutableBiMap.copyOf(mutableRegistry));
+            // 转换回不可变视图并设置
+            registryField.set(registry, Maps.unmodifiableBiMap(mutableRegistry));
 
             // 使用 holder() 方法获取或创建 holder
             DynamicHolder<T> holder = registry.holder(key);

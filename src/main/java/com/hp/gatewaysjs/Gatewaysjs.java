@@ -31,13 +31,10 @@ public class Gatewaysjs {
     public Gatewaysjs(IEventBus modEventBus) {
         GatewaysJSNetwork.register(modEventBus);
 
-        // 注册到NeoForge事件总线
-        NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);
-        DynamicGatewayManager.bootstrap();
 
         LOGGER.info("GatewaysJS 加载完成 - Gateway与KubeJS联动附属");
     }

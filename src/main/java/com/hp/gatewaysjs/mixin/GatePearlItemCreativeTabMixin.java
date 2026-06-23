@@ -7,6 +7,7 @@ import dev.shadowsoffire.gateways.item.GatePearlItem;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,11 +22,14 @@ import java.util.Comparator;
 public class GatePearlItemCreativeTabMixin {
 
     @Inject(method = "fillItemCategory", at = @At("HEAD"), cancellable = true, remap = false)
-    private void gatewaysjs$filterHiddenPearls(CreativeModeTab tab, CreativeModeTab.Output output, CallbackInfo ci) {
+    private void gatewaysjs$filterHiddenPearls(CreativeModeTab tab, BuildCreativeModeTabContentsEvent event, CallbackInfo ci) {
         GatewayRegistry.INSTANCE.getValues().stream()
             .sorted(Comparator
                 .comparing(Gateway::size)
-                .thenComparing(gateway -> GatewayRegistry.INSTANCE.getKey(gateway).toString()))
+                .thenComparing(gateway -> {
+                    ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+                    return id == null ? "" : id.toString();
+                }))
             .forEach(gateway -> {
                 ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
                 if (id == null || DynamicGatewayManager.isPearlHiddenInCreativeTab(id)) {
@@ -34,7 +38,7 @@ public class GatePearlItemCreativeTabMixin {
 
                 ItemStack stack = new ItemStack((GatePearlItem) (Object) this);
                 GatePearlItem.setGate(stack, gateway);
-                output.accept(stack);
+                event.accept(stack);
             });
         ci.cancel();
     }

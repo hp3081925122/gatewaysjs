@@ -35,6 +35,7 @@ public final class DynamicGatewayManager {
     private static final Map<ResourceLocation, String> PRE_SERVER_TOOLTIP_KEYS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, String> PRE_SERVER_TOOLTIP_TEXTS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, Boolean> PRE_SERVER_HIDDEN_CREATIVE_PEARLS = new LinkedHashMap<>();
+    private static boolean bootstrapped = false;
     private static boolean restoredForCurrentServer = false;
 
     private DynamicGatewayManager() {
@@ -42,6 +43,10 @@ public final class DynamicGatewayManager {
 
     // 将运行时缓存重新接回 Placebo 重载流程。
     public static void bootstrap() {
+        if (bootstrapped) {
+            return;
+        }
+
         GatewayRegistry.INSTANCE.addCallback(RegistryCallback.reloadOnly(registry -> {
             if (DYNAMIC_GATEWAYS.isEmpty()) {
                 return;
@@ -49,6 +54,7 @@ public final class DynamicGatewayManager {
 
             ImmutableMap.copyOf(DYNAMIC_GATEWAYS).forEach((id, gateway) -> RegistryHelper.register(registry, id, gateway));
         }));
+        bootstrapped = true;
     }
 
     // 注册运行时网关，写入世界存档，并同步到客户端。
@@ -131,6 +137,7 @@ public final class DynamicGatewayManager {
 
     // 在服务端生命周期允许时尽早恢复已保存的动态网关。
     public static void onServerAboutToStart(ServerAboutToStartEvent event) {
+        bootstrap();
         restoreAll(event.getServer());
         reapplyPreServerRegistrations(event.getServer());
     }
