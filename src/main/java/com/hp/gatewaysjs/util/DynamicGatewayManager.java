@@ -183,8 +183,13 @@ public final class DynamicGatewayManager {
             return;
         }
 
-        Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
-        registerInternal(id, gateway, server, false, false);
+        try {
+            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
+            registerInternal(id, gateway, server, false, false);
+        } catch (RuntimeException exception) {
+            // 无效的动态传送门只记录日志并跳过，保留存档数据以便缺失模组恢复后自动加载。
+            Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", id, exception);
+        }
     }
 
     // Syncs the registry contents to all connected clients.
@@ -211,9 +216,14 @@ public final class DynamicGatewayManager {
 
         for (Map.Entry<ResourceLocation, DynamicGatewaySavedData.GatewayData> entry : DynamicGatewaySavedData.get(server).entries().entrySet()) {
             DynamicGatewaySavedData.GatewayData gatewayData = entry.getValue();
-            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
-            updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
-            registerInternal(entry.getKey(), gateway, server, false, false);
+            try {
+                Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
+                updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
+                registerInternal(entry.getKey(), gateway, server, false, false);
+            } catch (RuntimeException exception) {
+                // 无效的动态传送门只记录日志并跳过，避免一个缺失实体阻塞整个服务器启动。
+                Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", entry.getKey(), exception);
+            }
         }
 
         restoredForCurrentServer = true;
