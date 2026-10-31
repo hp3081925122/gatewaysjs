@@ -39,6 +39,7 @@ public class Gatewaysjs {
         // 注册到Forge事件总线
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
+        MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onLevelLoad);
         MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
         MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
         MinecraftForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);

@@ -11,7 +11,10 @@ import dev.shadowsoffire.placebo.reload.RegistryCallback;
 import dev.shadowsoffire.placebo.reload.ReloadListenerPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -138,6 +141,15 @@ public final class DynamicGatewayManager {
         reapplyPreServerRegistrations(event.getServer());
     }
 
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (restoredForCurrentServer || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) {
+            return;
+        }
+
+        restoreAll(level.getServer());
+        reapplyPreServerRegistrations(level.getServer());
+    }
+
     // Retries restoration once the server is fully started if early restoration had no world access yet.
     public static void onServerStarted(ServerStartedEvent event) {
         if (!restoredForCurrentServer) {
@@ -227,6 +239,7 @@ public final class DynamicGatewayManager {
         }
 
         restoredForCurrentServer = true;
+        Gatewaysjs.getLogger().info("Restored {} dynamic gateways from saved data", DYNAMIC_GATEWAYS.size());
     }
 
     // Performs the shared registry/cache/save/sync bookkeeping for runtime gateways.
