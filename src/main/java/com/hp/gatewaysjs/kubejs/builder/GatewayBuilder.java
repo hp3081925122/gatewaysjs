@@ -1282,10 +1282,7 @@ public class GatewayBuilder {
          * @param count 数量
          */
         public WaveEntityBuilder addEntity(String entityId, int count) {
-            EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(entityId)).orElseThrow().value();
-            if (type == null) {
-                throw new IllegalArgumentException("Unknown entity type: " + entityId);
-            }
+            EntityType<?> type = resolveEntityType(entityId);
 
             EntityConfig entity = new EntityConfig(type, count);
             entities.add(entity);
@@ -1808,7 +1805,8 @@ public class GatewayBuilder {
     }
 
     private static ItemStackTemplate createItemStack(String itemId, int count, @Nullable String nbtString) {
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow());
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(Identifier.parse(itemId))
+                .orElseThrow(() -> new IllegalArgumentException("Unknown item: " + itemId)));
         stack.setCount(count);
         CompoundTag tag = parseNullableNbt(nbtString);
         if (tag != null) {
@@ -1844,11 +1842,9 @@ public class GatewayBuilder {
     }
 
     private static EntityType<?> resolveEntityType(String entityId) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(entityId)).orElseThrow().value();
-        if (type == null) {
-            throw new IllegalArgumentException("Unknown entity type: " + entityId);
-        }
-        return type;
+        return BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(entityId))
+            .orElseThrow(() -> new IllegalArgumentException("Unknown entity type: " + entityId))
+            .value();
     }
 
     private static WaveEntity createStandardWaveEntity(String entityId, @Nullable String nbtString, int count) {
@@ -1949,12 +1945,8 @@ public class GatewayBuilder {
     }
 
     private static Holder<SoundEvent> resolveSound(String soundId) {
-        Identifier id = Identifier.parse(soundId);
-        SoundEvent sound = BuiltInRegistries.SOUND_EVENT.get(id).orElseThrow().value();
-        if (sound == null) {
-            throw new IllegalArgumentException("Unknown sound event: " + soundId);
-        }
-        return BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound);
+        return BuiltInRegistries.SOUND_EVENT.get(Identifier.parse(soundId))
+            .orElseThrow(() -> new IllegalArgumentException("Unknown sound event: " + soundId));
     }
 
     private static <T> com.google.gson.JsonArray parseJsonArray(List<T> values, com.mojang.serialization.Codec<T> codec, String errorMessage) {

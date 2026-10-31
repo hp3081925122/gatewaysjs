@@ -59,7 +59,8 @@ public class WaveEndedEventJS implements KubeEvent {
         GatewayEntity entity = event.getEntity();
         if (entity.level() instanceof ServerLevel serverLevel) {
             ItemStack stack = new ItemStack(
-                BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
+                BuiltInRegistries.ITEM.get(Identifier.parse(itemId))
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown item: " + itemId))
             );
             stack.setCount(count);
             // 直接在世界中生成物品实体

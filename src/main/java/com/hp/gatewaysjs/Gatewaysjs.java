@@ -32,6 +32,7 @@ public class Gatewaysjs {
         GatewaysJSNetwork.register(modEventBus);
 
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerAboutToStart);
+        NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onLevelLoad);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStarted);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onPlayerLoggedIn);
         NeoForge.EVENT_BUS.addListener(DynamicGatewayManager::onServerStopped);

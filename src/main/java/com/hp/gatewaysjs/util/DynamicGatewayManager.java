@@ -9,7 +9,10 @@ import dev.shadowsoffire.placebo.dynreg.RegistryCallback;
 import dev.shadowsoffire.placebo.dynreg.DynRegPayloads;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -25,7 +28,6 @@ import java.util.Map;
  */
 public final class DynamicGatewayManager {
 
-    private static final Identifier GATEWAY_REGISTRY_PATH = Identifier.fromNamespaceAndPath("gatewaysjs", "gateways");
     private static final Map<Identifier, Gateway> DYNAMIC_GATEWAYS = new LinkedHashMap<>();
     private static final Map<Identifier, String> DISPLAY_NAMES = new LinkedHashMap<>();
     private static final Map<Identifier, String> TOOLTIP_KEYS = new LinkedHashMap<>();
@@ -143,6 +145,15 @@ public final class DynamicGatewayManager {
         reapplyPreServerRegistrations(event.getServer());
     }
 
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (restoredForCurrentServer || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) {
+            return;
+        }
+
+        restoreAll(level.getServer());
+        reapplyPreServerRegistrations(level.getServer());
+    }
+
     // 如果早期恢复时还没有世界访问权限，则在服务端启动完成后重试。
     public static void onServerStarted(ServerStartedEvent event) {
         if (!restoredForCurrentServer) {
@@ -234,6 +245,7 @@ public final class DynamicGatewayManager {
         }
 
         restoredForCurrentServer = true;
+        Gatewaysjs.getLogger().info("Restored {} dynamic gateways from saved data", DYNAMIC_GATEWAYS.size());
     }
 
     // 处理运行时网关共用的注册、缓存、保存和同步逻辑。
@@ -310,25 +322,25 @@ public final class DynamicGatewayManager {
     }
 
     private static void sendRegistryToAll() {
-        PacketDistributor.sendToAllPlayers(new DynRegPayloads.Start(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToAllPlayers(new DynRegPayloads.Start(GatewayRegistry.INSTANCE.getId()));
         GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
             Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
             if (gateway != null) {
-                PacketDistributor.sendToAllPlayers(new DynRegPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+                PacketDistributor.sendToAllPlayers(new DynRegPayloads.Content<>(GatewayRegistry.INSTANCE.getId(), id, gateway));
             }
         });
-        PacketDistributor.sendToAllPlayers(new DynRegPayloads.End(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToAllPlayers(new DynRegPayloads.End(GatewayRegistry.INSTANCE.getId()));
     }
 
     private static void sendRegistryToPlayer(ServerPlayer player) {
-        PacketDistributor.sendToPlayer(player, new DynRegPayloads.Start(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToPlayer(player, new DynRegPayloads.Start(GatewayRegistry.INSTANCE.getId()));
         GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
             Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
             if (gateway != null) {
-                PacketDistributor.sendToPlayer(player, new DynRegPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+                PacketDistributor.sendToPlayer(player, new DynRegPayloads.Content<>(GatewayRegistry.INSTANCE.getId(), id, gateway));
             }
         });
-        PacketDistributor.sendToPlayer(player, new DynRegPayloads.End(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToPlayer(player, new DynRegPayloads.End(GatewayRegistry.INSTANCE.getId()));
     }
 }
 

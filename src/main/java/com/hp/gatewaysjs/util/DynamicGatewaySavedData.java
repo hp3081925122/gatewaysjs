@@ -1,6 +1,9 @@
 package com.hp.gatewaysjs.util;
 
+import com.google.gson.JsonElement;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.Dynamic;
+import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.hp.gatewaysjs.Gatewaysjs;
 import net.minecraft.resources.Identifier;
@@ -27,8 +30,13 @@ public class DynamicGatewaySavedData extends SavedData {
             Codec.BOOL.optionalFieldOf("hidePearlInCreativeTab", false).forGetter(GatewayEntry::hidePearlInCreativeTab)
     ).apply(instance, GatewayEntry::new));
 
+    private static final Codec<List<GatewayEntry>> LENIENT_ENTRY_LIST_CODEC = Codec.PASSTHROUGH.listOf().xmap(
+            DynamicGatewaySavedData::decodeEntries,
+            DynamicGatewaySavedData::encodeEntries
+    );
+
     private static final Codec<DynamicGatewaySavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            GATEWAY_ENTRY_CODEC.listOf().optionalFieldOf("gateways", List.of()).forGetter(DynamicGatewaySavedData::codecEntries)
+            LENIENT_ENTRY_LIST_CODEC.optionalFieldOf("gateways", List.of()).forGetter(DynamicGatewaySavedData::codecEntries)
     ).apply(instance, DynamicGatewaySavedData::fromCodecEntries));
 
     private static final SavedDataType<DynamicGatewaySavedData> TYPE = new SavedDataType<>(
@@ -42,12 +50,32 @@ public class DynamicGatewaySavedData extends SavedData {
         return overworld.getDataStorage().computeIfAbsent(TYPE);
     }
 
+    private static List<GatewayEntry> decodeEntries(List<Dynamic<?>> values) {
+        List<GatewayEntry> entries = new ArrayList<>();
+        for (Dynamic<?> value : values) {
+            GATEWAY_ENTRY_CODEC.parse(value)
+                    .resultOrPartial(message -> Gatewaysjs.getLogger().error("Skipping invalid saved dynamic gateway entry: {}", message))
+                    .ifPresent(entries::add);
+        }
+        return entries;
+    }
+
+    private static List<Dynamic<?>> encodeEntries(List<GatewayEntry> entries) {
+        List<Dynamic<?>> values = new ArrayList<>();
+        for (GatewayEntry entry : entries) {
+            JsonElement json = GATEWAY_ENTRY_CODEC.encodeStart(JsonOps.INSTANCE, entry).getOrThrow(IllegalStateException::new);
+            values.add(new Dynamic<>(JsonOps.INSTANCE, json));
+        }
+        return values;
+    }
+
     private static DynamicGatewaySavedData fromCodecEntries(List<GatewayEntry> entries) {
         DynamicGatewaySavedData data = new DynamicGatewaySavedData();
         for (GatewayEntry entry : entries) {
             try {
                 data.gateways.put(Identifier.parse(entry.id()), entry.toData());
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException exception) {
+                Gatewaysjs.getLogger().error("Skipping saved dynamic gateway with invalid id {}", entry.id(), exception);
             }
         }
         return data;
@@ -89,6 +117,12 @@ public class DynamicGatewaySavedData extends SavedData {
     }
 
     private record GatewayEntry(String id, String json, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
+        private GatewayEntry {
+            displayName = nullToEmpty(displayName);
+            tooltipKey = nullToEmpty(tooltipKey);
+            tooltipText = nullToEmpty(tooltipText);
+        }
+
         private GatewayData toData() {
             return new GatewayData(json, emptyToNull(displayName), emptyToNull(tooltipKey), emptyToNull(tooltipText), hidePearlInCreativeTab);
         }
@@ -97,7 +131,3 @@ public class DynamicGatewaySavedData extends SavedData {
     public record GatewayData(String json, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
     }
 }
-
-
-
-

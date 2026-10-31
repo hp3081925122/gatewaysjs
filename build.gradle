@@ -15,7 +15,7 @@ version = project.mod_version
 group = project.mod_group_id
 
 base {
-    archivesName = "${project.mod_id}-${project.minecraft_version}-neoforge"
+    archivesName = project.mod_id
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
@@ -63,8 +63,8 @@ dependencies {
     implementation 'curse.maven:apothic-attributes-898963:9076588'
     implementation 'curse.maven:apotheosis-313970:9054740'
     implementation 'curse.maven:kubejs-238086:9191319'
-    implementation 'curse.maven:better-advanced-tooltips-1637623:9148547'
     implementation 'curse.maven:rhino-416294:8463898'
+    runtimeOnly 'curse.maven:better-advanced-tooltips-1637623:9148547'
     implementation 'curse.maven:apothic-enchanting-1063926:9076558'
     implementation 'curse.maven:apothic-spawners-986583:8529719'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'

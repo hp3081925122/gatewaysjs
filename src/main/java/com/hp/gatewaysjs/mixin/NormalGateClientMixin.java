@@ -9,10 +9,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
 
-
 import dev.shadowsoffire.gateways.client.NormalGateClient;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.resources.Identifier;
 
@@ -43,12 +43,11 @@ public class NormalGateClientMixin {
         method = "renderBossBar",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V"),
         remap = false)
-    private static void gatewaysjs$redirectBackground(RenderPipeline pipeline, GuiGraphicsExtractor gfx, Identifier tex,
+    private static void gatewaysjs$redirectBackground(GuiGraphicsExtractor gfx, RenderPipeline pipeline, Identifier tex,
             int x, int y, int width, int height, int color) {
         BossBarRenderConfig config = CUSTOM_BOSS_BAR_CONFIG.get();
         if (config != null && width == 182 && height == 5) {
-
-            gfx.blit(config.texture(), x, y, (int) config.bgU(), (int) config.bgV(),
+            gfx.blit(RenderPipelines.GUI_TEXTURED, config.texture(), x, y, (int) config.bgU(), (int) config.bgV(),
                     config.barWidth(), config.barHeight(),
                     config.texWidth(), config.texHeight());
         } else {
@@ -63,13 +62,12 @@ public class NormalGateClientMixin {
         method = "renderBossBar",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIIIIIII)V"),
         remap = false)
-    private static void gatewaysjs$redirectProgress(RenderPipeline pipeline, GuiGraphicsExtractor gfx, Identifier tex,
+    private static void gatewaysjs$redirectProgress(GuiGraphicsExtractor gfx, RenderPipeline pipeline, Identifier tex,
             int spriteWidth, int spriteHeight, int u, int v, int x, int y, int width, int height, int color) {
         BossBarRenderConfig config = CUSTOM_BOSS_BAR_CONFIG.get();
         if (config != null && spriteWidth == 182 && spriteHeight == 5 && height == 5) {
-
             int scaledWidth = Math.max(0, Math.round(width * (config.barWidth() / 182.0F)));
-            gfx.blit(config.getActualProgressTexture(), x, y, (int) config.fillU(), (int) config.fillV(),
+            gfx.blit(RenderPipelines.GUI_TEXTURED, config.getActualProgressTexture(), x, y, (int) config.fillU(), (int) config.fillV(),
                     scaledWidth, config.barHeight(),
                     config.texWidth(), config.texHeight());
         } else {

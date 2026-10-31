@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.JsonOps;
-import dev.shadowsoffire.placebo.codec.CodecMap;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
 import dev.shadowsoffire.placebo.dynreg.DynRegBiMap;
 import dev.shadowsoffire.placebo.dynreg.DynamicHolder;
@@ -26,7 +25,6 @@ public class RegistryHelper {
 
     // 反射缓存
     private static Field registryField;
-    private static Field codecsField;
     private static Method bindMethod;
     private static Method unbindMethod;
 
@@ -88,13 +86,7 @@ public class RegistryHelper {
      * 检查指定ID是否已在注册表中
      */
     public static boolean isRegistered(DynamicRegistry<?> registry, Identifier key) {
-        try {
-            initReflection();
-            BiMap<Identifier, ?> currentRegistry = (BiMap<Identifier, ?>) registryField.get(registry);
-            return currentRegistry.containsKey(key);
-        } catch (Exception e) {
-            return false;
-        }
+        return registry.getKeys().contains(key);
     }
 
     /**
@@ -103,9 +95,7 @@ public class RegistryHelper {
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> String encodeToJson(DynamicRegistry<T> registry, T value) {
         try {
-            initReflection();
-            CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
-            JsonElement element = codecMap.encodeStart(JsonOps.INSTANCE, value).getOrThrow(IllegalStateException::new);
+            JsonElement element = registry.elementCodec().encodeStart(JsonOps.INSTANCE, value).getOrThrow(IllegalStateException::new);
             return element.toString();
         } catch (Exception e) {
             throw new RuntimeException("Failed to encode registry value " + value, e);
@@ -118,9 +108,7 @@ public class RegistryHelper {
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> T decodeFromJson(DynamicRegistry<T> registry, String json) {
         try {
-            initReflection();
-            CodecMap<T> codecMap = (CodecMap<T>) codecsField.get(registry);
-            Pair<T, JsonElement> decoded = codecMap.decode(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow(IllegalStateException::new);
+            Pair<T, JsonElement> decoded = registry.elementCodec().decode(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow(IllegalStateException::new);
             return decoded.getFirst();
         } catch (Exception e) {
             throw new RuntimeException("Failed to decode registry value from json", e);
@@ -131,10 +119,6 @@ public class RegistryHelper {
         if (registryField == null) {
             registryField = DynamicRegistry.class.getDeclaredField("registry");
             registryField.setAccessible(true);
-        }
-        if (codecsField == null) {
-            codecsField = DynamicRegistry.class.getDeclaredField("codecs");
-            codecsField.setAccessible(true);
         }
         if (bindMethod == null) {
             bindMethod = DynamicHolder.class.getDeclaredMethod("bind");

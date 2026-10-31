@@ -220,7 +220,8 @@ public class GatewayEntityWrapper {
     public void spawnItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId))
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown item: " + itemId))
             );
             stack.setCount(count);
             entity.spawnItem(stack);
@@ -235,7 +236,8 @@ public class GatewayEntityWrapper {
     public void spawnCompletionItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId))
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown item: " + itemId))
             );
             stack.setCount(count);
             entity.spawnCompletionItem(stack);
@@ -248,7 +250,9 @@ public class GatewayEntityWrapper {
      */
     public void playSound(String soundId) {
         if (entity.level() instanceof ServerLevel) {
-            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(Identifier.parse(soundId)).orElseThrow().value();
+            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(Identifier.parse(soundId))
+                .orElseThrow(() -> new IllegalArgumentException("Unknown sound event: " + soundId))
+                .value();
             entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.0F);
         }
     }
