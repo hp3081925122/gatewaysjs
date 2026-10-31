@@ -2,7 +2,7 @@ package com.hp.gatewaysjs.util;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Boss条渲染配置，控制自定义Boss条的每个部分的绘制参数。
@@ -17,10 +17,10 @@ import net.minecraft.resources.ResourceLocation;
 public class BossBarRenderConfig {
 
     /** 外表纹理（空血条背景） */
-    private final ResourceLocation texture;
+    private final Identifier texture;
     /** 进度纹理（选填，不填则使用texture） */
     @Nullable
-    private final ResourceLocation progressTexture;
+    private final Identifier progressTexture;
 
     private final float bgU;
     private final float bgV;
@@ -35,7 +35,7 @@ public class BossBarRenderConfig {
      * 使用默认UV布局（和原版bars.png一致），仅替换纹理。
      * @param texture 外表纹理路径（进度也使用此纹理）
      */
-    public BossBarRenderConfig(ResourceLocation texture) {
+    public BossBarRenderConfig(Identifier texture) {
         this(texture, null, 0, 60, 0, 65, 182, 5, 256, 256);
     }
 
@@ -44,7 +44,7 @@ public class BossBarRenderConfig {
      * @param texture        外表纹理（空血条背景）
      * @param progressTexture 进度纹理（血条填充）
      */
-    public BossBarRenderConfig(ResourceLocation texture, ResourceLocation progressTexture) {
+    public BossBarRenderConfig(Identifier texture, Identifier progressTexture) {
         this(texture, progressTexture, 0, 60, 0, 65, 182, 5, 256, 256);
     }
 
@@ -60,7 +60,7 @@ public class BossBarRenderConfig {
      * @param texWidth  纹理总宽度
      * @param texHeight 纹理总高度
      */
-    public BossBarRenderConfig(ResourceLocation texture, float bgU, float bgV, float fillU, float fillV,
+    public BossBarRenderConfig(Identifier texture, float bgU, float bgV, float fillU, float fillV,
                                int barWidth, int barHeight, int texWidth, int texHeight) {
         this(texture, null, bgU, bgV, fillU, fillV, barWidth, barHeight, texWidth, texHeight);
     }
@@ -78,7 +78,7 @@ public class BossBarRenderConfig {
      * @param texWidth        纹理总宽度
      * @param texHeight       纹理总高度
      */
-    public BossBarRenderConfig(ResourceLocation texture, @Nullable ResourceLocation progressTexture,
+    public BossBarRenderConfig(Identifier texture, @Nullable Identifier progressTexture,
                                float bgU, float bgV, float fillU, float fillV,
                                int barWidth, int barHeight, int texWidth, int texHeight) {
         this.texture = texture;
@@ -94,14 +94,14 @@ public class BossBarRenderConfig {
     }
 
     /** @return 外表纹理路径 */
-    public ResourceLocation texture() { return texture; }
+    public Identifier texture() { return texture; }
 
     /** @return 进度纹理路径，null表示与外表共用同一纹理 */
     @Nullable
-    public ResourceLocation progressTexture() { return progressTexture; }
+    public Identifier progressTexture() { return progressTexture; }
 
     /** @return 实际渲染进度时使用的纹理 */
-    public ResourceLocation getActualProgressTexture() {
+    public Identifier getActualProgressTexture() {
         return progressTexture != null ? progressTexture : texture;
     }
 
@@ -114,3 +114,4 @@ public class BossBarRenderConfig {
     public int texWidth() { return texWidth; }
     public int texHeight() { return texHeight; }
 }
+

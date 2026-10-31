@@ -7,7 +7,7 @@ import dev.shadowsoffire.gateways.event.GateEvent;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 
@@ -35,7 +35,7 @@ public class WaveEndedEventJS implements KubeEvent {
         GatewayEntity entity = event.getEntity();
         Gateway gateway = entity.getGateway();
         if (gateway != null) {
-            ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+            Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
             return id != null ? id.toString() : "unknown";
         }
         return "unknown";
@@ -59,7 +59,7 @@ public class WaveEndedEventJS implements KubeEvent {
         GatewayEntity entity = event.getEntity();
         if (entity.level() instanceof ServerLevel serverLevel) {
             ItemStack stack = new ItemStack(
-                BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
+                BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
             );
             stack.setCount(count);
             // 直接在世界中生成物品实体
@@ -74,3 +74,5 @@ public class WaveEndedEventJS implements KubeEvent {
         }
     }
 }
+
+

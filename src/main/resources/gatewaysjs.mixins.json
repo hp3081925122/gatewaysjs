@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.hp.gatewaysjs.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "refmap": "gatewaysjs.refmap.json",
   "mixins": [
     "GatePearlItemCreativeTabMixin",
@@ -11,6 +11,7 @@
     "GatewayEntityPersistenceMixin"
   ],
   "client": [
+    "GatewayRenderStateMixin",
     "GatewayRendererMixin",
     "NormalGateClientMixin"
   ],
@@ -21,3 +22,7 @@
     "requireAnnotations": true
   }
 }
+
+
+
+

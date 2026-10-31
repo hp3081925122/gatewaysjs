@@ -4,7 +4,7 @@ import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import dev.shadowsoffire.gateways.item.GatePearlItem;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
@@ -27,11 +27,11 @@ public class GatePearlItemCreativeTabMixin {
             .sorted(Comparator
                 .comparing(Gateway::size)
                 .thenComparing(gateway -> {
-                    ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+                    Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
                     return id == null ? "" : id.toString();
                 }))
             .forEach(gateway -> {
-                ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+                Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
                 if (id == null || DynamicGatewayManager.isPearlHiddenInCreativeTab(id)) {
                     return;
                 }
@@ -43,3 +43,4 @@ public class GatePearlItemCreativeTabMixin {
         ci.cancel();
     }
 }
+

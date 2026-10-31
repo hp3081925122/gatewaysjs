@@ -16,11 +16,11 @@ import dev.shadowsoffire.gateways.gate.endless.ApplicationMode;
 import dev.shadowsoffire.gateways.gate.endless.EndlessGateway;
 import dev.shadowsoffire.gateways.gate.endless.EndlessModifier;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
-import dev.shadowsoffire.placebo.reload.DynamicRegistry;
+import dev.shadowsoffire.placebo.dynreg.DynamicRegistry;
 import dev.shadowsoffire.placebo.json.ChancedEffectInstance;
 import dev.shadowsoffire.placebo.json.RandomAttributeModifier;
 import dev.shadowsoffire.gateways.gate.SpawnAlgorithms.SpawnAlgorithm;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
+import dev.shadowsoffire.placebo.dynreg.DynamicHolder;
 import dev.shadowsoffire.placebo.util.StepFunction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -29,7 +29,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffect;
@@ -38,6 +38,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
@@ -113,7 +114,7 @@ public class GatewayBuilder {
         multiply_total
     }
 
-    private final ResourceLocation gatewayId;
+    private final Identifier gatewayId;
     private final boolean isCustom;
     private GatewayKind gatewayKind = GatewayKind.normal;
     
@@ -148,11 +149,11 @@ public class GatewayBuilder {
 
     // 自定义纹理（仅客户端渲染用）
     @Nullable
-    private ResourceLocation entityTexture;
+    private Identifier entityTexture;
     @Nullable
     private BossBarRenderConfig bossBarConfig;
 
-    private GatewayBuilder(ResourceLocation id, boolean isCustom) {
+    private GatewayBuilder(Identifier id, boolean isCustom) {
         this.gatewayId = id;
         this.isCustom = isCustom;
     }
@@ -162,7 +163,7 @@ public class GatewayBuilder {
      * @param id 传送门ID（必须已在数据包中注册）
      */
     public static GatewayBuilder create(String id) {
-        return new GatewayBuilder(ResourceLocation.parse(id), false);
+        return new GatewayBuilder(Identifier.parse(id), false);
     }
 
     /**
@@ -170,7 +171,7 @@ public class GatewayBuilder {
      * @param id 自定义传送门的唯一ID（如 "mymod:custom_gate"）
      */
     public static GatewayBuilder custom(String id) {
-        return new GatewayBuilder(ResourceLocation.parse(id), true);
+        return new GatewayBuilder(Identifier.parse(id), true);
     }
 
     // ==================== 通用方法 ====================
@@ -403,7 +404,7 @@ public class GatewayBuilder {
      * @param texturePath 纹理的资源路径
      */
     public GatewayBuilder entityTexture(String texturePath) {
-        this.entityTexture = ResourceLocation.parse(texturePath);
+        this.entityTexture = Identifier.parse(texturePath);
         return this;
     }
 
@@ -416,7 +417,7 @@ public class GatewayBuilder {
      * @param texturePath Boss条纹理的资源路径
      */
     public GatewayBuilder bossBarTexture(String texturePath) {
-        this.bossBarConfig = new BossBarRenderConfig(ResourceLocation.parse(texturePath));
+        this.bossBarConfig = new BossBarRenderConfig(Identifier.parse(texturePath));
         return this;
     }
 
@@ -442,7 +443,7 @@ public class GatewayBuilder {
     public GatewayBuilder bossBar(String texturePath, double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
         this.bossBarConfig = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
+            Identifier.parse(texturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         return this;
@@ -458,8 +459,8 @@ public class GatewayBuilder {
      */
     public GatewayBuilder bossBar(String texturePath, String progressTexturePath) {
         this.bossBarConfig = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
-            ResourceLocation.parse(progressTexturePath));
+            Identifier.parse(texturePath),
+            Identifier.parse(progressTexturePath));
         return this;
     }
 
@@ -488,8 +489,8 @@ public class GatewayBuilder {
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
         this.bossBarConfig = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
-            ResourceLocation.parse(progressTexturePath),
+            Identifier.parse(texturePath),
+            Identifier.parse(progressTexturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         return this;
@@ -563,7 +564,7 @@ public class GatewayBuilder {
     }
 
     public GatewayBuilder addStackListReward(List<ItemStack> stacks) {
-        this.rewards.add(new Reward.StackListReward(List.copyOf(stacks)));
+        this.rewards.add(new Reward.StackListReward(stacks.stream().map(ItemStackTemplate::fromNonEmptyStack).toList()));
         return this;
     }
 
@@ -591,7 +592,7 @@ public class GatewayBuilder {
      * 添加战利品表奖励（传送门完成时发放）
      */
     public GatewayBuilder addLootTableReward(String lootTableId, int rolls, String description) {
-        this.rewards.add(new Reward.LootTableReward(ResourceLocation.parse(lootTableId), rolls, description));
+        this.rewards.add(new Reward.LootTableReward(Identifier.parse(lootTableId), rolls, description));
         return this;
     }
 
@@ -1253,7 +1254,7 @@ public class GatewayBuilder {
     /**
      * 获取传送门ID
      */
-    public ResourceLocation getGatewayId() {
+    public Identifier getGatewayId() {
         return gatewayId;
     }
 
@@ -1281,7 +1282,7 @@ public class GatewayBuilder {
          * @param count 数量
          */
         public WaveEntityBuilder addEntity(String entityId, int count) {
-            EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(entityId));
+            EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(entityId)).orElseThrow().value();
             if (type == null) {
                 throw new IllegalArgumentException("Unknown entity type: " + entityId);
             }
@@ -1340,7 +1341,7 @@ public class GatewayBuilder {
         }
 
         public WaveBuilder addApotheosisElite(String eliteId, String entityId, String description, int count) {
-            String baseEntityJson = "{\"type\":\"gateways:standard\",\"entity\":\"" + ResourceLocation.parse(entityId) + "\",\"count\":" + count + "}";
+            String baseEntityJson = "{\"type\":\"gateways:standard\",\"entity\":\"" + Identifier.parse(entityId) + "\",\"count\":" + count + "}";
             customEntities.add(ApotheosisGatewayCompat.createEliteWaveEntity(eliteId, baseEntityJson, description));
             return this;
         }
@@ -1443,7 +1444,7 @@ public class GatewayBuilder {
         }
 
         public WaveBuilder addStackListReward(List<ItemStack> stacks) {
-            this.rewards.add(new Reward.StackListReward(List.copyOf(stacks)));
+            this.rewards.add(new Reward.StackListReward(stacks.stream().map(ItemStackTemplate::fromNonEmptyStack).toList()));
             return this;
         }
 
@@ -1471,7 +1472,7 @@ public class GatewayBuilder {
          * 添加战利品表奖励到波次
          */
         public WaveBuilder addLootTableReward(String lootTableId, int rolls, String description) {
-            this.rewards.add(new Reward.LootTableReward(ResourceLocation.parse(lootTableId), rolls, description));
+            this.rewards.add(new Reward.LootTableReward(Identifier.parse(lootTableId), rolls, description));
             return this;
         }
 
@@ -1767,7 +1768,7 @@ public class GatewayBuilder {
 
                 AttributeModifier.Operation op = parseAttributeOperation(operation);
                 return new WaveModifier.AttributeModifier(
-                    new RandomAttributeModifier(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(attribute), op, StepFunction.constant(value.floatValue()))
+                    RandomAttributeModifier.generated(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(attribute), op, StepFunction.constant(value.floatValue()), Identifier.fromNamespaceAndPath("gatewaysjs", "generated_attribute"))
                 );
             }
 
@@ -1788,14 +1789,14 @@ public class GatewayBuilder {
             }
 
             public static WaveModifier.GearSetModifier createGearSetModifier(String gearSetId) {
-                return WaveModifier.GearSetModifier.create(ResourceLocation.parse(gearSetId));
+                return WaveModifier.GearSetModifier.create(Identifier.parse(gearSetId));
             }
         }
     }
 
     private static CompoundTag parseNbt(String nbtString) {
         try {
-            return TagParser.parseTag(nbtString);
+            return TagParser.parseCompoundFully(nbtString);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid entity NBT: " + nbtString, e);
         }
@@ -1806,14 +1807,14 @@ public class GatewayBuilder {
         return nbtString == null || nbtString.isBlank() ? null : parseNbt(nbtString);
     }
 
-    private static ItemStack createItemStack(String itemId, int count, @Nullable String nbtString) {
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId)));
+    private static ItemStackTemplate createItemStack(String itemId, int count, @Nullable String nbtString) {
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow());
         stack.setCount(count);
         CompoundTag tag = parseNullableNbt(nbtString);
         if (tag != null) {
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         }
-        return stack;
+        return ItemStackTemplate.fromNonEmptyStack(stack);
     }
 
     private static Reward createStackListReward(String stacksJson) {
@@ -1843,7 +1844,7 @@ public class GatewayBuilder {
     }
 
     private static EntityType<?> resolveEntityType(String entityId) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(entityId));
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(entityId)).orElseThrow().value();
         if (type == null) {
             throw new IllegalArgumentException("Unknown entity type: " + entityId);
         }
@@ -1934,7 +1935,7 @@ public class GatewayBuilder {
     }
 
     private Holder<SoundEvent> soundtrackOrDefault() {
-        return soundtrack != null ? soundtrack : BuiltInRegistries.SOUND_EVENT.wrapAsHolder(BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.withDefaultNamespace("music.creative")));
+        return soundtrack != null ? soundtrack : BuiltInRegistries.SOUND_EVENT.get(Identifier.withDefaultNamespace("music.creative")).orElseThrow();
     }
 
     private String parseRequiredTierId() {
@@ -1948,8 +1949,8 @@ public class GatewayBuilder {
     }
 
     private static Holder<SoundEvent> resolveSound(String soundId) {
-        ResourceLocation id = ResourceLocation.parse(soundId);
-        SoundEvent sound = BuiltInRegistries.SOUND_EVENT.get(id);
+        Identifier id = Identifier.parse(soundId);
+        SoundEvent sound = BuiltInRegistries.SOUND_EVENT.get(id).orElseThrow().value();
         if (sound == null) {
             throw new IllegalArgumentException("Unknown sound event: " + soundId);
         }
@@ -2029,3 +2030,8 @@ public class GatewayBuilder {
             .orElseThrow(() -> new IllegalArgumentException("无法解码Endless应用模式JSON。"));
     }
 }
+
+
+
+
+

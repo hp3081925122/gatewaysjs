@@ -100,7 +100,7 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         exists(): boolean
         register(): this
         spawn(level: Level): dev.shadowsoffire.gateways.entity.GatewayEntity | null
-        getGatewayId(): net.minecraft.resources.ResourceLocation
+        getGatewayId(): net.minecraft.resources.Identifier
     }
 
     namespace GatewayBuilder {
@@ -109,7 +109,9 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         interface WaveBuilder {
             addEntity(entityId: string, count: number): WaveEntityBuilder
             addEntityJson(entityJson: string): this
+            /** 旧接口别名：添加一个按玩家世界阶层随机选择的神化入侵者。 */
             addApotheosisBoss(): this
+            /** 旧接口别名：添加一个指定神化入侵者，bossId 必须是当前版本的入侵者 ID。 */
             addApotheosisBoss(bossId: string): this
             addApotheosisInvader(invaderId: string, count: number): this
             addApotheosisInvader(invaderId: string, count: number, description: string): this
@@ -211,3 +213,4 @@ declare const Gateway: {
     setBossBarTexture(gatewayId: string, texturePath: string, progressTexturePath: string): void
     setBossBarTexture(gatewayId: string, texturePath: string, progressTexturePath: string, bgU: number, bgV: number, fillU: number, fillV: number, barWidth: number, barHeight: number, texWidth: number, texHeight: number): void
 }
+

@@ -12,7 +12,7 @@ import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -92,7 +92,7 @@ public class GatewayEventHandler {
     }
 
     private static void applyDynamicDisplayName(GatewayEntity entity) {
-        ResourceLocation id = ((GatewayEntityAccessor) entity).getGate().getId();
+        Identifier id = ((GatewayEntityAccessor) entity).getGate().getId();
         String displayName = DynamicGatewayManager.getDisplayName(id);
         if (displayName == null || displayName.isEmpty()) {
             return;
@@ -102,3 +102,4 @@ public class GatewayEventHandler {
         entity.setCustomName(name);
     }
 }
+

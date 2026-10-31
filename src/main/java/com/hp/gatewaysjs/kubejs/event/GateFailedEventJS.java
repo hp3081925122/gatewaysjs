@@ -6,7 +6,7 @@ import dev.shadowsoffire.gateways.entity.GatewayEntity;
 import dev.shadowsoffire.gateways.event.GateEvent;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * 传送门失败事件JS包装类
@@ -31,7 +31,7 @@ public class GateFailedEventJS implements KubeEvent {
         GatewayEntity entity = event.getEntity();
         Gateway gateway = entity.getGateway();
         if (gateway != null) {
-            ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+            Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
             return id != null ? id.toString() : "unknown";
         }
         return "unknown";
@@ -57,3 +57,4 @@ public class GateFailedEventJS implements KubeEvent {
             : "Unknown failure reason";
     }
 }
+

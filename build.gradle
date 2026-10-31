@@ -1,98 +1,89 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.141'
-    id 'idea'
-}
-
-version = mod_version
-group = mod_group_id
-
-base {
-    archivesName = mod_id
-}
-
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
-
-sourceSets.main.resources {
-    srcDir 'src/generated/resources'
+    id 'net.neoforged.moddev' version '2.0.140'
 }
 
 repositories {
-    maven { url = 'https://www.cursemaven.com' }
+    maven {
+        url = 'https://www.cursemaven.com'
+        content { includeGroup 'curse.maven' }
+    }
 }
+
+version = project.mod_version
+group = project.mod_group_id
+
+base {
+    archivesName = "${project.mod_id}-${project.minecraft_version}-neoforge"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 neoForge {
     version = project.neo_version
 
     runs {
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
         client {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         server {
             server()
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         gameTestServer {
             type = 'gameTestServer'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
-
         data {
             data()
-            programArguments.addAll '--mod', project.mod_id, '--all',
-                    '--output', file('src/generated/resources/').absolutePath,
-                    '--existing', file('src/main/resources/').absolutePath
-        }
-
-        configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
     }
 
     mods {
-        "${mod_id}" {
-            sourceSet sourceSets.main
+        "${project.mod_id}" {
+            sourceSet(sourceSets.main)
         }
     }
 }
 
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
+sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
+    implementation "net.neoforged:neoforge:${project.neo_version}"
+    implementation 'curse.maven:gateways-to-eternity-417802:8502258'
+    implementation 'curse.maven:placebo-283644:8502256'
+    implementation 'curse.maven:apothic-attributes-898963:9076588'
+    implementation 'curse.maven:apotheosis-313970:9054740'
+    implementation 'curse.maven:kubejs-238086:9191319'
+    implementation 'curse.maven:better-advanced-tooltips-1637623:9148547'
+    implementation 'curse.maven:rhino-416294:8463898'
+    implementation 'curse.maven:apothic-enchanting-1063926:9076558'
+    implementation 'curse.maven:apothic-spawners-986583:8529719'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-
-    implementation 'curse.maven:gateways-to-eternity-417802:6926284'
-    implementation 'curse.maven:placebo-283644:6926281'
-    implementation 'curse.maven:apothic-attributes-898963:7445079'
-    implementation 'curse.maven:apotheosis-313970:8182695'
-    implementation 'curse.maven:kubejs-238086:8083208'
-    implementation 'curse.maven:rhino-416294:7104526'
-    implementation 'curse.maven:apothic-enchanting-1063926:8107222'
-    implementation 'curse.maven:apothic-spawners-986583:7492121'
 }
 
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     def replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            loader_version_range   : loader_version_range,
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-            mod_authors            : mod_authors,
-            mod_description        : mod_description,
+            minecraft_version: project.minecraft_version,
+            minecraft_version_range: project.minecraft_version_range,
+            neo_version: project.neo_version,
+            neo_version_range: project.neo_version_range,
+            loader_version_range: project.loader_version_range,
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_version: project.mod_version,
+            mod_authors: project.mod_authors,
+            mod_description: project.mod_description
     ]
-
     inputs.properties replaceProperties
     expand replaceProperties
     from 'src/main/templates'
@@ -101,18 +92,40 @@ def generateModMetadata = tasks.register('generateModMetadata', ProcessResources
 
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
+tasks.withType(ProcessResources).configureEach {
+    def replaceProperties = [
+            minecraft_version: project.minecraft_version,
+            minecraft_version_range: project.minecraft_version_range,
+            neo_version: project.neo_version,
+            neo_version_range: project.neo_version_range,
+            loader_version_range: project.loader_version_range,
+            mod_id: project.mod_id,
+            mod_name: project.mod_name,
+            mod_license: project.mod_license,
+            mod_version: project.mod_version,
+            mod_authors: project.mod_authors,
+            mod_description: project.mod_description
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven { url "file://${project.projectDir}/repo" }
+    }
+}
 
 tasks.withType(JavaCompile).configureEach {
+    options.release = 25
     options.encoding = 'UTF-8'
 }
 
-tasks.withType(JavaExec).configureEach {
-    modularity.inferModulePath = false
-}
 
-idea {
-    module {
-        downloadSources = true
-        downloadJavadoc = true
-    }
-}

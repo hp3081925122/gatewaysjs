@@ -1,12 +1,13 @@
 package com.hp.gatewaysjs.util;
 
 import com.google.common.collect.ImmutableMap;
+import com.hp.gatewaysjs.Gatewaysjs;
 import com.hp.gatewaysjs.network.SyncDynamicGatewayMetadataPacket;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
-import dev.shadowsoffire.placebo.reload.RegistryCallback;
-import dev.shadowsoffire.placebo.reload.ReloadListenerPayloads;
-import net.minecraft.resources.ResourceLocation;
+import dev.shadowsoffire.placebo.dynreg.RegistryCallback;
+import dev.shadowsoffire.placebo.dynreg.DynRegPayloads;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -24,17 +25,17 @@ import java.util.Map;
  */
 public final class DynamicGatewayManager {
 
-    private static final String GATEWAY_REGISTRY_PATH = "gateways";
-    private static final Map<ResourceLocation, Gateway> DYNAMIC_GATEWAYS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> DISPLAY_NAMES = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> TOOLTIP_KEYS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> TOOLTIP_TEXTS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, Boolean> HIDDEN_CREATIVE_PEARLS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, Gateway> PRE_SERVER_GATEWAYS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> PRE_SERVER_DISPLAY_NAMES = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> PRE_SERVER_TOOLTIP_KEYS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, String> PRE_SERVER_TOOLTIP_TEXTS = new LinkedHashMap<>();
-    private static final Map<ResourceLocation, Boolean> PRE_SERVER_HIDDEN_CREATIVE_PEARLS = new LinkedHashMap<>();
+    private static final Identifier GATEWAY_REGISTRY_PATH = Identifier.fromNamespaceAndPath("gatewaysjs", "gateways");
+    private static final Map<Identifier, Gateway> DYNAMIC_GATEWAYS = new LinkedHashMap<>();
+    private static final Map<Identifier, String> DISPLAY_NAMES = new LinkedHashMap<>();
+    private static final Map<Identifier, String> TOOLTIP_KEYS = new LinkedHashMap<>();
+    private static final Map<Identifier, String> TOOLTIP_TEXTS = new LinkedHashMap<>();
+    private static final Map<Identifier, Boolean> HIDDEN_CREATIVE_PEARLS = new LinkedHashMap<>();
+    private static final Map<Identifier, Gateway> PRE_SERVER_GATEWAYS = new LinkedHashMap<>();
+    private static final Map<Identifier, String> PRE_SERVER_DISPLAY_NAMES = new LinkedHashMap<>();
+    private static final Map<Identifier, String> PRE_SERVER_TOOLTIP_KEYS = new LinkedHashMap<>();
+    private static final Map<Identifier, String> PRE_SERVER_TOOLTIP_TEXTS = new LinkedHashMap<>();
+    private static final Map<Identifier, Boolean> PRE_SERVER_HIDDEN_CREATIVE_PEARLS = new LinkedHashMap<>();
     private static boolean bootstrapped = false;
     private static boolean restoredForCurrentServer = false;
 
@@ -58,19 +59,19 @@ public final class DynamicGatewayManager {
     }
 
     // 注册运行时网关，写入世界存档，并同步到客户端。
-    public static boolean register(ResourceLocation id, Gateway gateway) {
+    public static boolean register(Identifier id, Gateway gateway) {
         return register(id, gateway, null, null, null, false);
     }
 
-    public static boolean register(ResourceLocation id, Gateway gateway, String displayName) {
+    public static boolean register(Identifier id, Gateway gateway, String displayName) {
         return register(id, gateway, displayName, null, null, false);
     }
 
-    public static boolean register(ResourceLocation id, Gateway gateway, String displayName, String tooltipKey, String tooltipText) {
+    public static boolean register(Identifier id, Gateway gateway, String displayName, String tooltipKey, String tooltipText) {
         return register(id, gateway, displayName, tooltipKey, tooltipText, false);
     }
 
-    public static boolean register(ResourceLocation id, Gateway gateway, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
+    public static boolean register(Identifier id, Gateway gateway, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         updateMetadata(id, displayName, tooltipKey, tooltipText, hidePearlInCreativeTab);
         if (server == null) {
@@ -81,23 +82,23 @@ public final class DynamicGatewayManager {
         return registerInternal(id, gateway, server, true, true);
     }
 
-    public static String getDisplayName(ResourceLocation id) {
+    public static String getDisplayName(Identifier id) {
         return DISPLAY_NAMES.get(id);
     }
 
-    public static String getTooltipKey(ResourceLocation id) {
+    public static String getTooltipKey(Identifier id) {
         return TOOLTIP_KEYS.get(id);
     }
 
-    public static String getTooltipText(ResourceLocation id) {
+    public static String getTooltipText(Identifier id) {
         return TOOLTIP_TEXTS.get(id);
     }
 
-    public static boolean isPearlHiddenInCreativeTab(ResourceLocation id) {
+    public static boolean isPearlHiddenInCreativeTab(Identifier id) {
         return HIDDEN_CREATIVE_PEARLS.getOrDefault(id, false);
     }
 
-    public static void setPearlHiddenInCreativeTab(ResourceLocation id, boolean hidden) {
+    public static void setPearlHiddenInCreativeTab(Identifier id, boolean hidden) {
         if (hidden) {
             HIDDEN_CREATIVE_PEARLS.put(id, true);
         }
@@ -106,8 +107,8 @@ public final class DynamicGatewayManager {
         }
     }
 
-    public static Map<ResourceLocation, SyncDynamicGatewayMetadataPacket.Entry> copyMetadata() {
-        Map<ResourceLocation, SyncDynamicGatewayMetadataPacket.Entry> entries = new LinkedHashMap<>();
+    public static Map<Identifier, SyncDynamicGatewayMetadataPacket.Entry> copyMetadata() {
+        Map<Identifier, SyncDynamicGatewayMetadataPacket.Entry> entries = new LinkedHashMap<>();
         DYNAMIC_GATEWAYS.keySet().forEach(id -> addMetadataEntry(entries, id));
         DISPLAY_NAMES.keySet().forEach(id -> addMetadataEntry(entries, id));
         TOOLTIP_KEYS.keySet().forEach(id -> addMetadataEntry(entries, id));
@@ -116,7 +117,7 @@ public final class DynamicGatewayManager {
         return entries;
     }
 
-    private static void addMetadataEntry(Map<ResourceLocation, SyncDynamicGatewayMetadataPacket.Entry> entries, ResourceLocation id) {
+    private static void addMetadataEntry(Map<Identifier, SyncDynamicGatewayMetadataPacket.Entry> entries, Identifier id) {
         entries.put(id, new SyncDynamicGatewayMetadataPacket.Entry(
                 DISPLAY_NAMES.get(id),
                 TOOLTIP_KEYS.get(id),
@@ -125,7 +126,7 @@ public final class DynamicGatewayManager {
         ));
     }
 
-    public static void applyClientMetadata(Map<ResourceLocation, SyncDynamicGatewayMetadataPacket.Entry> entries) {
+    public static void applyClientMetadata(Map<Identifier, SyncDynamicGatewayMetadataPacket.Entry> entries) {
         entries.forEach((id, entry) -> updateMetadata(
                 id,
                 entry.displayName(),
@@ -172,7 +173,7 @@ public final class DynamicGatewayManager {
     }
 
     // 在网关实体加载时校验 holder 前，确保已保存的动态网关可用。
-    public static void ensureGatewayAvailable(ResourceLocation id) {
+    public static void ensureGatewayAvailable(Identifier id) {
         if (RegistryHelper.isRegistered(GatewayRegistry.INSTANCE, id)) {
             return;
         }
@@ -187,8 +188,13 @@ public final class DynamicGatewayManager {
             return;
         }
 
-        Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
-        registerInternal(id, gateway, server, false, false);
+        try {
+            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
+            registerInternal(id, gateway, server, false, false);
+        } catch (RuntimeException exception) {
+            // 无效的动态传送门只记录日志并跳过，保留存档数据以便缺失模组恢复后自动加载。
+            Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", id, exception);
+        }
     }
 
     // 向所有客户端同步注册表内容。
@@ -215,18 +221,23 @@ public final class DynamicGatewayManager {
         TOOLTIP_TEXTS.clear();
         HIDDEN_CREATIVE_PEARLS.clear();
 
-        for (Map.Entry<ResourceLocation, DynamicGatewaySavedData.GatewayData> entry : DynamicGatewaySavedData.get(server).entries().entrySet()) {
+        for (Map.Entry<Identifier, DynamicGatewaySavedData.GatewayData> entry : DynamicGatewaySavedData.get(server).entries().entrySet()) {
             DynamicGatewaySavedData.GatewayData gatewayData = entry.getValue();
-            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
-            updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
-            registerInternal(entry.getKey(), gateway, server, false, false);
+            try {
+                Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
+                updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
+                registerInternal(entry.getKey(), gateway, server, false, false);
+            } catch (RuntimeException exception) {
+                // 无效的动态传送门只记录日志并跳过，避免一个缺失实体阻塞整个服务器启动。
+                Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", entry.getKey(), exception);
+            }
         }
 
         restoredForCurrentServer = true;
     }
 
     // 处理运行时网关共用的注册、缓存、保存和同步逻辑。
-    private static boolean registerInternal(ResourceLocation id, Gateway gateway, MinecraftServer server, boolean persistToSave, boolean syncClients) {
+    private static boolean registerInternal(Identifier id, Gateway gateway, MinecraftServer server, boolean persistToSave, boolean syncClients) {
         boolean registered = RegistryHelper.register(GatewayRegistry.INSTANCE, id, gateway);
         DYNAMIC_GATEWAYS.put(id, gateway);
 
@@ -247,7 +258,7 @@ public final class DynamicGatewayManager {
         return registered;
     }
 
-    private static void updateMetadata(ResourceLocation id, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
+    private static void updateMetadata(Identifier id, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
         putOrRemove(DISPLAY_NAMES, id, displayName);
         putOrRemove(TOOLTIP_KEYS, id, tooltipKey);
         putOrRemove(TOOLTIP_TEXTS, id, tooltipText);
@@ -259,7 +270,7 @@ public final class DynamicGatewayManager {
         }
     }
 
-    private static void cachePreServerRegistration(ResourceLocation id, Gateway gateway, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
+    private static void cachePreServerRegistration(Identifier id, Gateway gateway, String displayName, String tooltipKey, String tooltipText, boolean hidePearlInCreativeTab) {
         PRE_SERVER_GATEWAYS.put(id, gateway);
         putOrRemove(PRE_SERVER_DISPLAY_NAMES, id, displayName);
         putOrRemove(PRE_SERVER_TOOLTIP_KEYS, id, tooltipKey);
@@ -289,7 +300,7 @@ public final class DynamicGatewayManager {
         });
     }
 
-    private static void putOrRemove(Map<ResourceLocation, String> map, ResourceLocation id, String value) {
+    private static void putOrRemove(Map<Identifier, String> map, Identifier id, String value) {
         if (value != null && !value.isEmpty()) {
             map.put(id, value);
         }
@@ -299,24 +310,26 @@ public final class DynamicGatewayManager {
     }
 
     private static void sendRegistryToAll() {
-        PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.Start(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToAllPlayers(new DynRegPayloads.Start(GATEWAY_REGISTRY_PATH));
         GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
             Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
             if (gateway != null) {
-                PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+                PacketDistributor.sendToAllPlayers(new DynRegPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
             }
         });
-        PacketDistributor.sendToAllPlayers(new ReloadListenerPayloads.End(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToAllPlayers(new DynRegPayloads.End(GATEWAY_REGISTRY_PATH));
     }
 
     private static void sendRegistryToPlayer(ServerPlayer player) {
-        PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.Start(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToPlayer(player, new DynRegPayloads.Start(GATEWAY_REGISTRY_PATH));
         GatewayRegistry.INSTANCE.getKeys().forEach(id -> {
             Gateway gateway = GatewayRegistry.INSTANCE.getValue(id);
             if (gateway != null) {
-                PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
+                PacketDistributor.sendToPlayer(player, new DynRegPayloads.Content<>(GATEWAY_REGISTRY_PATH, id, gateway));
             }
         });
-        PacketDistributor.sendToPlayer(player, new ReloadListenerPayloads.End(GATEWAY_REGISTRY_PATH));
+        PacketDistributor.sendToPlayer(player, new DynRegPayloads.End(GATEWAY_REGISTRY_PATH));
     }
 }
+
+

@@ -6,7 +6,7 @@ import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import dev.shadowsoffire.gateways.gate.Wave;
 import dev.shadowsoffire.gateways.payloads.ParticlePayload;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -41,7 +41,7 @@ public class GatewayEntityWrapper {
     public String getGatewayId() {
         Gateway gateway = entity.getGateway();
         if (gateway != null) {
-            ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+            Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
             return id != null ? id.toString() : "unknown";
         }
         return "unknown";
@@ -112,7 +112,7 @@ public class GatewayEntityWrapper {
      * @return 维度ID，如 "minecraft:overworld"
      */
     public String getDimension() {
-        return entity.level().dimension().location().toString();
+        return entity.level().dimension().identifier().toString();
     }
 
     // ============== 波次信息 ==============
@@ -220,7 +220,7 @@ public class GatewayEntityWrapper {
     public void spawnItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
             );
             stack.setCount(count);
             entity.spawnItem(stack);
@@ -235,7 +235,7 @@ public class GatewayEntityWrapper {
     public void spawnCompletionItem(String itemId, int count) {
         if (entity.level() instanceof ServerLevel) {
             ItemStack stack = new ItemStack(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId))
+                net.minecraft.core.registries.BuiltInRegistries.ITEM.get(Identifier.parse(itemId)).orElseThrow()
             );
             stack.setCount(count);
             entity.spawnCompletionItem(stack);
@@ -248,7 +248,7 @@ public class GatewayEntityWrapper {
      */
     public void playSound(String soundId) {
         if (entity.level() instanceof ServerLevel) {
-            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(soundId));
+            net.minecraft.sounds.SoundEvent sound = net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.get(Identifier.parse(soundId)).orElseThrow().value();
             entity.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, net.minecraft.sounds.SoundSource.HOSTILE, 1.0F, 1.0F);
         }
     }
@@ -339,3 +339,5 @@ public class GatewayEntityWrapper {
             '}';
     }
 }
+
+

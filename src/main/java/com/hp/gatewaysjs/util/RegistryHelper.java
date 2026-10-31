@@ -8,10 +8,10 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.placebo.codec.CodecMap;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
-import dev.shadowsoffire.placebo.reload.DynRegBiMap;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
-import dev.shadowsoffire.placebo.reload.DynamicRegistry;
-import net.minecraft.resources.ResourceLocation;
+import dev.shadowsoffire.placebo.dynreg.DynRegBiMap;
+import dev.shadowsoffire.placebo.dynreg.DynamicHolder;
+import dev.shadowsoffire.placebo.dynreg.DynamicRegistry;
+import net.minecraft.resources.Identifier;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -48,17 +48,17 @@ public class RegistryHelper {
     @SuppressWarnings("unchecked")
     public static <T extends CodecProvider<? super T>> boolean register(
             DynamicRegistry<T> registry,
-            ResourceLocation key,
+            Identifier key,
             T value) {
         try {
             // 初始化反射字段
             initReflection();
 
             // 获取当前 registry map
-            BiMap<ResourceLocation, T> currentRegistry = (BiMap<ResourceLocation, T>) registryField.get(registry);
+            BiMap<Identifier, T> currentRegistry = (BiMap<Identifier, T>) registryField.get(registry);
 
             // 转换为 Placebo 动态注册表使用的可变 Map。
-            BiMap<ResourceLocation, T> mutableRegistry = new DynRegBiMap<>();
+            BiMap<Identifier, T> mutableRegistry = new DynRegBiMap<>();
             mutableRegistry.putAll(currentRegistry);
 
             // 先移除旧条目，允许同一个网关 ID 刷新。
@@ -87,10 +87,10 @@ public class RegistryHelper {
     /**
      * 检查指定ID是否已在注册表中
      */
-    public static boolean isRegistered(DynamicRegistry<?> registry, ResourceLocation key) {
+    public static boolean isRegistered(DynamicRegistry<?> registry, Identifier key) {
         try {
             initReflection();
-            BiMap<ResourceLocation, ?> currentRegistry = (BiMap<ResourceLocation, ?>) registryField.get(registry);
+            BiMap<Identifier, ?> currentRegistry = (BiMap<Identifier, ?>) registryField.get(registry);
             return currentRegistry.containsKey(key);
         } catch (Exception e) {
             return false;
@@ -146,3 +146,4 @@ public class RegistryHelper {
         }
     }
 }
+

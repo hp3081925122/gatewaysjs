@@ -12,9 +12,9 @@ import dev.shadowsoffire.gateways.gate.GatewayRegistry;
 import dev.shadowsoffire.gateways.gate.normal.NormalGateway;
 import dev.shadowsoffire.gateways.gate.endless.EndlessGateway;
 import dev.shadowsoffire.gateways.item.GatePearlItem;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
+import dev.shadowsoffire.placebo.dynreg.DynamicHolder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -71,7 +71,7 @@ public interface GatewayAPI {
                 .comparing(Gateway::size)
                 .thenComparing(g -> GatewayRegistry.INSTANCE.getKey(g).toString()))
             .forEach(gate -> {
-                ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gate);
+                Identifier id = GatewayRegistry.INSTANCE.getKey(gate);
                 ids.add(id != null ? id.toString() : "unknown");
             });
         return ids;
@@ -101,7 +101,7 @@ public interface GatewayAPI {
 
         List<String> ids = new ArrayList<>();
         for (Gateway gate : gates) {
-            ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gate);
+            Identifier id = GatewayRegistry.INSTANCE.getKey(gate);
             ids.add(id != null ? id.toString() : "unknown");
         }
         return ids;
@@ -115,7 +115,7 @@ public interface GatewayAPI {
      */
     static boolean exists(String gatewayId) {
         try {
-            ResourceLocation loc = ResourceLocation.parse(gatewayId);
+            Identifier loc = Identifier.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             return holder.isBound();
         } catch (Exception e) {
@@ -131,7 +131,7 @@ public interface GatewayAPI {
      */
     static GatewayWrapper getGateway(String gatewayId) {
         try {
-            ResourceLocation loc = ResourceLocation.parse(gatewayId);
+            Identifier loc = Identifier.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             if (holder.isBound()) {
                 return new GatewayWrapper(holder.get());
@@ -149,7 +149,7 @@ public interface GatewayAPI {
      */
     static String getGatewayType(String gatewayId) {
         try {
-            ResourceLocation loc = ResourceLocation.parse(gatewayId);
+            Identifier loc = Identifier.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
             if (holder.isBound()) {
                 Gateway gate = holder.get();
@@ -181,7 +181,7 @@ public interface GatewayAPI {
         }
 
         try {
-            ResourceLocation loc = ResourceLocation.parse(gatewayId);
+            Identifier loc = Identifier.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
 
             if (!holder.isBound()) {
@@ -251,7 +251,7 @@ public interface GatewayAPI {
      */
     static ItemStack createPearlItem(String gatewayId) {
         try {
-            ResourceLocation loc = ResourceLocation.parse(gatewayId);
+            Identifier loc = Identifier.parse(gatewayId);
             DynamicHolder<Gateway> holder = GatewayRegistry.INSTANCE.holder(loc);
 
             if (!holder.isBound()) {
@@ -284,7 +284,7 @@ public interface GatewayAPI {
         List<String> ids = new ArrayList<>();
         for (Gateway gate : GatewayRegistry.INSTANCE.getValues()) {
             if (gate instanceof NormalGateway) {
-                ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gate);
+                Identifier id = GatewayRegistry.INSTANCE.getKey(gate);
                 ids.add(id != null ? id.toString() : "unknown");
             }
         }
@@ -300,7 +300,7 @@ public interface GatewayAPI {
         List<String> ids = new ArrayList<>();
         for (Gateway gate : GatewayRegistry.INSTANCE.getValues()) {
             if (gate instanceof EndlessGateway) {
-                ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gate);
+                Identifier id = GatewayRegistry.INSTANCE.getKey(gate);
                 ids.add(id != null ? id.toString() : "unknown");
             }
         }
@@ -324,7 +324,7 @@ public interface GatewayAPI {
 
         for (Gateway gate : GatewayRegistry.INSTANCE.getValues()) {
             if (gate.size() == targetSize) {
-                ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gate);
+                Identifier id = GatewayRegistry.INSTANCE.getKey(gate);
                 ids.add(id != null ? id.toString() : "unknown");
             }
         }
@@ -401,29 +401,41 @@ public interface GatewayAPI {
     }
 
     static boolean registerJson(String id, String gatewayJson) {
-        ResourceLocation loc = ResourceLocation.parse(id);
-        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
-        return DynamicGatewayManager.register(loc, gateway);
+        Identifier loc = Identifier.parse(id);
+        try {
+            Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+            return DynamicGatewayManager.register(loc, gateway);
+        } catch (RuntimeException exception) {
+            // JSON 引用不存在的实体时跳过注册，避免脚本注册阶段中断服务器。
+            com.hp.gatewaysjs.Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its JSON definition is invalid.", loc, exception);
+            return false;
+        }
     }
 
     static boolean registerJson(String id, String gatewayJson, String displayName) {
-        ResourceLocation loc = ResourceLocation.parse(id);
-        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
-        return DynamicGatewayManager.register(loc, gateway, displayName);
+        Identifier loc = Identifier.parse(id);
+        try {
+            Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+            return DynamicGatewayManager.register(loc, gateway, displayName);
+        } catch (RuntimeException exception) {
+            // JSON 引用不存在的实体时跳过注册，避免脚本注册阶段中断服务器。
+            com.hp.gatewaysjs.Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its JSON definition is invalid.", loc, exception);
+            return false;
+        }
     }
 
     /**
      * 在创造物品栏中隐藏指定传送门对应的珍珠
      */
     static void hidePearlInCreativeTab(String gatewayId) {
-        DynamicGatewayManager.setPearlHiddenInCreativeTab(ResourceLocation.parse(gatewayId), true);
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(Identifier.parse(gatewayId), true);
     }
 
     /**
      * 恢复指定传送门珍珠在创造物品栏中的显示
      */
     static void showPearlInCreativeTab(String gatewayId) {
-        DynamicGatewayManager.setPearlHiddenInCreativeTab(ResourceLocation.parse(gatewayId), false);
+        DynamicGatewayManager.setPearlHiddenInCreativeTab(Identifier.parse(gatewayId), false);
     }
 
     // ==================== 自定义纹理设置 ====================
@@ -440,8 +452,8 @@ public interface GatewayAPI {
      * @param texturePath 纹理资源路径（如 "mymod:textures/entity/my_gate.png"）
      */
     static void setEntityTexture(String gatewayId, String texturePath) {
-        ResourceLocation id = ResourceLocation.parse(gatewayId);
-        ResourceLocation tex = ResourceLocation.parse(texturePath);
+        Identifier id = Identifier.parse(gatewayId);
+        Identifier tex = Identifier.parse(texturePath);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -478,8 +490,8 @@ public interface GatewayAPI {
      * @param texturePath Boss条纹理资源路径（建议使用 "minecraft:textures/gui/bars.png"）
      */
     static void setBossBarTexture(String gatewayId, String texturePath) {
-        ResourceLocation id = ResourceLocation.parse(gatewayId);
-        BossBarRenderConfig config = new BossBarRenderConfig(ResourceLocation.parse(texturePath));
+        Identifier id = Identifier.parse(gatewayId);
+        BossBarRenderConfig config = new BossBarRenderConfig(Identifier.parse(texturePath));
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -536,9 +548,9 @@ public interface GatewayAPI {
     static void setBossBarTexture(String gatewayId, String texturePath,
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
-        ResourceLocation id = ResourceLocation.parse(gatewayId);
+        Identifier id = Identifier.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
+            Identifier.parse(texturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
@@ -577,10 +589,10 @@ public interface GatewayAPI {
      * @param progressTexturePath 进度纹理（血条填充）
      */
     static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath) {
-        ResourceLocation id = ResourceLocation.parse(gatewayId);
+        Identifier id = Identifier.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
-            ResourceLocation.parse(progressTexturePath));
+            Identifier.parse(texturePath),
+            Identifier.parse(progressTexturePath));
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
         if (existing != null) {
             GatewayCustomTextureManager.INSTANCE.setTextureData(id,
@@ -671,10 +683,10 @@ public interface GatewayAPI {
     static void setBossBarTexture(String gatewayId, String texturePath, String progressTexturePath,
                                   double bgU, double bgV, double fillU, double fillV,
                                   double barWidth, double barHeight, double texWidth, double texHeight) {
-        ResourceLocation id = ResourceLocation.parse(gatewayId);
+        Identifier id = Identifier.parse(gatewayId);
         BossBarRenderConfig config = new BossBarRenderConfig(
-            ResourceLocation.parse(texturePath),
-            ResourceLocation.parse(progressTexturePath),
+            Identifier.parse(texturePath),
+            Identifier.parse(progressTexturePath),
             (float) bgU, (float) bgV, (float) fillU, (float) fillV,
             (int) barWidth, (int) barHeight, (int) texWidth, (int) texHeight);
         GatewayRenderData existing = GatewayCustomTextureManager.INSTANCE.getTextureData(id);
@@ -687,3 +699,4 @@ public interface GatewayAPI {
         }
     }
 }
+

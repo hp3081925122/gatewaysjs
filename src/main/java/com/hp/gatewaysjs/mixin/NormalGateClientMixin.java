@@ -8,12 +8,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.hp.gatewaysjs.util.BossBarRenderConfig;
 import com.hp.gatewaysjs.util.GatewayCustomTextureManager;
-import com.mojang.blaze3d.systems.RenderSystem;
+
 
 import dev.shadowsoffire.gateways.client.NormalGateClient;
 import dev.shadowsoffire.gateways.entity.GatewayEntity;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import net.minecraft.resources.Identifier;
 
 /**
  * 混入 {@link NormalGateClient}，为Boss条渲染提供完全自定义的纹理支持。
@@ -40,18 +41,18 @@ public class NormalGateClientMixin {
      */
     @Redirect(
         method = "renderBossBar",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V"),
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIII)V"),
         remap = false)
-    private static void gatewaysjs$redirectBackground(GuiGraphics gfx, ResourceLocation tex,
-            int x, int y, int width, int height) {
+    private static void gatewaysjs$redirectBackground(RenderPipeline pipeline, GuiGraphicsExtractor gfx, Identifier tex,
+            int x, int y, int width, int height, int color) {
         BossBarRenderConfig config = CUSTOM_BOSS_BAR_CONFIG.get();
         if (config != null && width == 182 && height == 5) {
-            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+
             gfx.blit(config.texture(), x, y, (int) config.bgU(), (int) config.bgV(),
                     config.barWidth(), config.barHeight(),
                     config.texWidth(), config.texHeight());
         } else {
-            gfx.blitSprite(tex, x, y, width, height);
+            gfx.blitSprite(pipeline, tex, x, y, width, height, color);
         }
     }
 
@@ -60,19 +61,22 @@ public class NormalGateClientMixin {
      */
     @Redirect(
         method = "renderBossBar",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIIIIIII)V"),
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIIIIIII)V"),
         remap = false)
-    private static void gatewaysjs$redirectProgress(GuiGraphics gfx, ResourceLocation tex,
-            int spriteWidth, int spriteHeight, int u, int v, int x, int y, int width, int height) {
+    private static void gatewaysjs$redirectProgress(RenderPipeline pipeline, GuiGraphicsExtractor gfx, Identifier tex,
+            int spriteWidth, int spriteHeight, int u, int v, int x, int y, int width, int height, int color) {
         BossBarRenderConfig config = CUSTOM_BOSS_BAR_CONFIG.get();
         if (config != null && spriteWidth == 182 && spriteHeight == 5 && height == 5) {
-            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+
             int scaledWidth = Math.max(0, Math.round(width * (config.barWidth() / 182.0F)));
             gfx.blit(config.getActualProgressTexture(), x, y, (int) config.fillU(), (int) config.fillV(),
                     scaledWidth, config.barHeight(),
                     config.texWidth(), config.texHeight());
         } else {
-            gfx.blitSprite(tex, spriteWidth, spriteHeight, u, v, x, y, width, height);
+            gfx.blitSprite(pipeline, tex, spriteWidth, spriteHeight, u, v, x, y, width, height, color);
         }
     }
 }
+
+
+

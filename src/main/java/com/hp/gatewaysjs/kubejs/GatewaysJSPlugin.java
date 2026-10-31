@@ -57,3 +57,4 @@ public class GatewaysJSPlugin implements KubeJSPlugin {
         filter.allow("dev.shadowsoffire.gateways.event.GateEvent");
     }
 }
+

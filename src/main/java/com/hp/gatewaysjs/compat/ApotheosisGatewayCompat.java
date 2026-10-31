@@ -1,11 +1,12 @@
 package com.hp.gatewaysjs.compat;
 
 import com.google.gson.JsonObject;
+import com.hp.gatewaysjs.Gatewaysjs;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.gate.Reward;
 import dev.shadowsoffire.gateways.gate.WaveEntity;
 import dev.shadowsoffire.gateways.gate.WaveModifier;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.fml.ModList;
 
 import java.util.Arrays;
@@ -29,15 +30,17 @@ public final class ApotheosisGatewayCompat {
     }
 
     public static WaveEntity createBossWaveEntity() {
+        Gatewaysjs.getLogger().debug("Mapping the legacy Apotheosis boss gateway API to a random invader.");
         JsonObject json = new JsonObject();
-        json.addProperty("type", "apotheosis:boss");
+        json.addProperty("type", "apotheosis:invader");
         return decodeWaveEntity(json);
     }
 
     public static WaveEntity createBossWaveEntity(String bossId) {
+        Gatewaysjs.getLogger().debug("Mapping the legacy Apotheosis boss gateway API to invader {}.", bossId);
         JsonObject json = new JsonObject();
-        json.addProperty("type", "apotheosis:boss");
-        json.addProperty("boss", ResourceLocation.parse(bossId).toString());
+        json.addProperty("type", "apotheosis:invader");
+        json.addProperty("invader", Identifier.parse(bossId).toString());
         return decodeWaveEntity(json);
     }
 
@@ -69,7 +72,7 @@ public final class ApotheosisGatewayCompat {
     public static WaveEntity createInvaderWaveEntity(String invaderId, int count, String description) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:invader");
-        json.addProperty("invader", ResourceLocation.parse(invaderId).toString());
+        json.addProperty("invader", Identifier.parse(invaderId).toString());
         json.addProperty("count", count);
         if (description != null && !description.isBlank()) {
             json.addProperty("desc", description);
@@ -91,7 +94,7 @@ public final class ApotheosisGatewayCompat {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:elite");
         json.add("base_entity", com.google.gson.JsonParser.parseString(baseEntityJson));
-        json.addProperty("elite", ResourceLocation.parse(eliteId).toString());
+        json.addProperty("elite", Identifier.parse(eliteId).toString());
         if (description != null && !description.isBlank()) {
             json.addProperty("desc", description);
         }
@@ -149,9 +152,10 @@ public final class ApotheosisGatewayCompat {
         }
         Arrays.stream(values)
             .filter(value -> value != null && !value.isBlank())
-            .map(ResourceLocation::parse)
-            .map(ResourceLocation::toString)
+            .map(Identifier::parse)
+            .map(Identifier::toString)
             .forEach(array::add);
         return array;
     }
 }
+

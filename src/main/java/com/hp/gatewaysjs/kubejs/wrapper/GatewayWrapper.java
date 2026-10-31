@@ -2,7 +2,7 @@ package com.hp.gatewaysjs.kubejs.wrapper;
 
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Gateway配置的JavaScript包装类
@@ -28,7 +28,7 @@ public class GatewayWrapper {
      * @return 资源定位符字符串
      */
     public String getId() {
-        ResourceLocation id = GatewayRegistry.INSTANCE.getKey(gateway);
+        Identifier id = GatewayRegistry.INSTANCE.getKey(gateway);
         return id != null ? id.toString() : "unknown";
     }
 
@@ -77,3 +77,4 @@ public class GatewayWrapper {
         return "GatewayWrapper{" + "id='" + getId() + '\'' + ", size=" + getSize() + '}';
     }
 }
+

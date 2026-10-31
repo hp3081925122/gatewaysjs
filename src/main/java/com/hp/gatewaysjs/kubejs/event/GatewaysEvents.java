@@ -63,3 +63,4 @@ public interface GatewaysEvents {
      */
     EventHandler WAVE_ENTITY_SPAWNED = GROUP.server("waveEntitySpawned", () -> WaveEntitySpawnedEventJS.class);
 }
+

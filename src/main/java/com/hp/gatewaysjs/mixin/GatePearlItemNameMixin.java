@@ -3,10 +3,10 @@ package com.hp.gatewaysjs.mixin;
 import com.hp.gatewaysjs.util.DynamicGatewayManager;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.item.GatePearlItem;
-import dev.shadowsoffire.placebo.reload.DynamicHolder;
+import dev.shadowsoffire.placebo.dynreg.DynamicHolder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,7 +26,7 @@ public class GatePearlItemNameMixin {
         }
 
         DynamicHolder<Gateway> holder = GatePearlItem.getGate(stack);
-        ResourceLocation id = holder.getId();
+        Identifier id = holder.getId();
         String displayName = DynamicGatewayManager.getDisplayName(id);
         if (displayName == null || displayName.isEmpty()) {
             return;
@@ -35,3 +35,4 @@ public class GatePearlItemNameMixin {
         cir.setReturnValue(Component.literal(displayName));
     }
 }
+
