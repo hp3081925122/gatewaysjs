@@ -402,14 +402,26 @@ public interface GatewayAPI {
 
     static boolean registerJson(String id, String gatewayJson) {
         ResourceLocation loc = ResourceLocation.parse(id);
-        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
-        return DynamicGatewayManager.register(loc, gateway);
+        try {
+            Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+            return DynamicGatewayManager.register(loc, gateway);
+        } catch (RuntimeException exception) {
+            // JSON 引用不存在的实体时跳过注册，避免脚本注册阶段中断服务器。
+            com.hp.gatewaysjs.Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its JSON definition is invalid.", loc, exception);
+            return false;
+        }
     }
 
     static boolean registerJson(String id, String gatewayJson, String displayName) {
         ResourceLocation loc = ResourceLocation.parse(id);
-        Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
-        return DynamicGatewayManager.register(loc, gateway, displayName);
+        try {
+            Gateway gateway = com.hp.gatewaysjs.util.RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayJson);
+            return DynamicGatewayManager.register(loc, gateway, displayName);
+        } catch (RuntimeException exception) {
+            // JSON 引用不存在的实体时跳过注册，避免脚本注册阶段中断服务器。
+            com.hp.gatewaysjs.Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its JSON definition is invalid.", loc, exception);
+            return false;
+        }
     }
 
     /**

@@ -109,7 +109,9 @@ declare namespace com.hp.gatewaysjs.kubejs.builder {
         interface WaveBuilder {
             addEntity(entityId: string, count: number): WaveEntityBuilder
             addEntityJson(entityJson: string): this
+            /** 旧接口别名：添加一个按玩家世界阶层随机选择的神化入侵者。 */
             addApotheosisBoss(): this
+            /** 旧接口别名：添加一个指定神化入侵者，bossId 必须是当前版本的入侵者 ID。 */
             addApotheosisBoss(bossId: string): this
             addApotheosisInvader(invaderId: string, count: number): this
             addApotheosisInvader(invaderId: string, count: number, description: string): this

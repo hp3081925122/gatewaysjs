@@ -1,6 +1,7 @@
 package com.hp.gatewaysjs.compat;
 
 import com.google.gson.JsonObject;
+import com.hp.gatewaysjs.Gatewaysjs;
 import com.mojang.serialization.JsonOps;
 import dev.shadowsoffire.gateways.gate.Reward;
 import dev.shadowsoffire.gateways.gate.WaveEntity;
@@ -29,15 +30,17 @@ public final class ApotheosisGatewayCompat {
     }
 
     public static WaveEntity createBossWaveEntity() {
+        Gatewaysjs.getLogger().debug("Mapping the legacy Apotheosis boss gateway API to a random invader.");
         JsonObject json = new JsonObject();
-        json.addProperty("type", "apotheosis:boss");
+        json.addProperty("type", "apotheosis:invader");
         return decodeWaveEntity(json);
     }
 
     public static WaveEntity createBossWaveEntity(String bossId) {
+        Gatewaysjs.getLogger().debug("Mapping the legacy Apotheosis boss gateway API to invader {}.", bossId);
         JsonObject json = new JsonObject();
-        json.addProperty("type", "apotheosis:boss");
-        json.addProperty("boss", ResourceLocation.parse(bossId).toString());
+        json.addProperty("type", "apotheosis:invader");
+        json.addProperty("invader", ResourceLocation.parse(bossId).toString());
         return decodeWaveEntity(json);
     }
 
@@ -55,14 +58,14 @@ public final class ApotheosisGatewayCompat {
     public static Reward createGemReward(String... purityIds) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:gem");
-        json.add("purities", buildStringArray(purityIds));
+        json.add("purities", buildPurityArray(purityIds));
         return decodeReward(json);
     }
 
     public static Reward createTrueRandomGemReward(String... purityIds) {
         JsonObject json = new JsonObject();
         json.addProperty("type", "apotheosis:true_random_gem");
-        json.add("purities", buildStringArray(purityIds));
+        json.add("purities", buildPurityArray(purityIds));
         return decodeReward(json);
     }
 
@@ -140,6 +143,19 @@ public final class ApotheosisGatewayCompat {
                 throw new IllegalArgumentException(message);
             })
             .orElseThrow(() -> new IllegalArgumentException("无法解码Apotheosis词缀奖励。"));
+    }
+
+    private static com.google.gson.JsonArray buildPurityArray(String... values) {
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        if (values == null) {
+            return array;
+        }
+        Arrays.stream(values)
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> value.trim().toLowerCase(java.util.Locale.ROOT))
+            .map(value -> value.startsWith(APOTHEOSIS + ":") ? value.substring(APOTHEOSIS.length() + 1) : value)
+            .forEach(array::add);
+        return array;
     }
 
     private static com.google.gson.JsonArray buildStringArray(String... values) {

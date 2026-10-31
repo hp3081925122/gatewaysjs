@@ -1,6 +1,7 @@
 package com.hp.gatewaysjs.util;
 
 import com.google.common.collect.ImmutableMap;
+import com.hp.gatewaysjs.Gatewaysjs;
 import com.hp.gatewaysjs.network.SyncDynamicGatewayMetadataPacket;
 import dev.shadowsoffire.gateways.gate.Gateway;
 import dev.shadowsoffire.gateways.gate.GatewayRegistry;
@@ -8,7 +9,10 @@ import dev.shadowsoffire.placebo.reload.RegistryCallback;
 import dev.shadowsoffire.placebo.reload.ReloadListenerPayloads;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -142,6 +146,15 @@ public final class DynamicGatewayManager {
         reapplyPreServerRegistrations(event.getServer());
     }
 
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (restoredForCurrentServer || !(event.getLevel() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) {
+            return;
+        }
+
+        restoreAll(level.getServer());
+        reapplyPreServerRegistrations(level.getServer());
+    }
+
     // 如果早期恢复时还没有世界访问权限，则在服务端启动完成后重试。
     public static void onServerStarted(ServerStartedEvent event) {
         if (!restoredForCurrentServer) {
@@ -187,8 +200,13 @@ public final class DynamicGatewayManager {
             return;
         }
 
-        Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
-        registerInternal(id, gateway, server, false, false);
+        try {
+            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, json);
+            registerInternal(id, gateway, server, false, false);
+        } catch (RuntimeException exception) {
+            // 无效的动态传送门只记录日志并跳过，保留存档数据以便缺失模组恢复后自动加载。
+            Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", id, exception);
+        }
     }
 
     // 向所有客户端同步注册表内容。
@@ -217,12 +235,18 @@ public final class DynamicGatewayManager {
 
         for (Map.Entry<ResourceLocation, DynamicGatewaySavedData.GatewayData> entry : DynamicGatewaySavedData.get(server).entries().entrySet()) {
             DynamicGatewaySavedData.GatewayData gatewayData = entry.getValue();
-            Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
-            updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
-            registerInternal(entry.getKey(), gateway, server, false, false);
+            try {
+                Gateway gateway = RegistryHelper.decodeFromJson(GatewayRegistry.INSTANCE, gatewayData.json());
+                updateMetadata(entry.getKey(), gatewayData.displayName(), gatewayData.tooltipKey(), gatewayData.tooltipText(), gatewayData.hidePearlInCreativeTab());
+                registerInternal(entry.getKey(), gateway, server, false, false);
+            } catch (RuntimeException exception) {
+                // 无效的动态传送门只记录日志并跳过，避免一个缺失实体阻塞整个服务器启动。
+                Gatewaysjs.getLogger().error("Skipping dynamic gateway {} because its saved definition could not be restored.", entry.getKey(), exception);
+            }
         }
 
         restoredForCurrentServer = true;
+        Gatewaysjs.getLogger().info("Restored {} dynamic gateways from saved data", DYNAMIC_GATEWAYS.size());
     }
 
     // 处理运行时网关共用的注册、缓存、保存和同步逻辑。
