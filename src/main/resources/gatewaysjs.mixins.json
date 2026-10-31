@@ -11,7 +11,6 @@
     "GatewayEntityPersistenceMixin"
   ],
   "client": [
-    "GatewayRenderStateMixin",
     "GatewayRendererMixin",
     "NormalGateClientMixin"
   ],
@@ -22,6 +21,9 @@
     "requireAnnotations": true
   }
 }
+
+
+
 
 
 
